@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, RefreshCw, Settings, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Calendar, RefreshCw, Settings, ExternalLink } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { ApiClient } from '../lib/api';
 
 interface CalendarEvent {
   id: string;
@@ -26,46 +27,44 @@ export const CalendarView: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [authUrl, setAuthUrl] = useState<string | null>(null);
 
   // Check calendar connection status
-  const checkConnection = async () => {
+  const checkConnection = useCallback(async () => {
     if (!user?.id) return false;
     
     try {
-      const response = await fetch(`/api/calendar/status/${user.id}`);
-      const data = await response.json();
+      const data = await ApiClient.get<{ connected: boolean }>(`/api/calendar/status/${user.id}`);
       setIsConnected(data.connected);
       return data.connected;
     } catch (error) {
       console.error('Error checking calendar connection:', error);
       return false;
     }
-  };
+  }, [user?.id]);
 
   // Get calendar events
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     if (!user?.id) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      const response = await fetch(`/api/calendar/events/${user.id}`);
-      const data = await response.json();
+      const data = await ApiClient.get<{ success: boolean; events: CalendarEvent[]; error?: string }>(`/api/calendar/events/${user.id}`);
       
       if (data.success) {
         setEvents(data.events);
       } else {
         throw new Error(data.error || 'Failed to fetch events');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching events:', error);
-      setError(error.message || 'Etkinlikler yüklenirken bir hata oluştu');
+      const errorMessage = error instanceof Error ? error.message : 'Etkinlikler yüklenirken bir hata oluştu';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   // Get Google Calendar auth URL
   const getAuthUrl = async () => {
@@ -75,18 +74,17 @@ export const CalendarView: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`/api/calendar/auth-url/${user.id}`);
-      const data = await response.json();
+      const data = await ApiClient.get<{ authUrl?: string; error?: string }>(`/api/calendar/auth-url/${user.id}`);
       
       if (data.authUrl) {
-        setAuthUrl(data.authUrl);
         window.open(data.authUrl, '_blank');
       } else {
         throw new Error(data.error || 'Auth URL alınamadı');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error getting auth URL:', error);
-      setError(error.message || 'Yetkilendirme URL\'si alınırken bir hata oluştu');
+      const errorMessage = error instanceof Error ? error.message : 'Yetkilendirme URL\'si alınırken bir hata oluştu';
+      setError(errorMessage);
     }
   };
 
@@ -125,7 +123,7 @@ export const CalendarView: React.FC = () => {
     };
     
     initialize();
-  }, []);
+  }, [checkConnection, fetchEvents]);
 
   // Format date for display
   const formatDate = (dateString: string) => {
