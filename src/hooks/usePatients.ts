@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Patient } from '../types';
-import { ApiClient } from '../lib/api';
+import { buildApiUrl } from '../lib/api';
 
 export const usePatients = (userId: string | null) => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -14,7 +14,13 @@ export const usePatients = (userId: string | null) => {
     setError(null);
     
     try {
-      const data = await ApiClient.get<{ patients: Patient[] }>(`/api/users/${userId}/patients`);
+      const response = await fetch(buildApiUrl(`users/${userId}/patients`));
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch patients');
+      }
+      
+      const data = await response.json();
       setPatients(data.patients || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -39,7 +45,19 @@ export const usePatients = (userId: string | null) => {
     setError(null);
 
     try {
-      const data = await ApiClient.post<{ patient: Patient }>(`/api/users/${userId}/patients`, patientData);
+      const response = await fetch(buildApiUrl(`users/${userId}/patients`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(patientData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add patient');
+      }
+
+      const data = await response.json();
       
       // Refresh the patients list
       await fetchPatients();

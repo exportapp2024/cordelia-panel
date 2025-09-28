@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, RefreshCw, Settings, ExternalLink } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { ApiClient } from '../lib/api';
+import { buildApiUrl } from '../lib/api';
 
 interface CalendarEvent {
   id: string;
@@ -27,13 +27,15 @@ export const CalendarView: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  // const [authUrl, setAuthUrl] = useState<string | null>(null);
 
   // Check calendar connection status
   const checkConnection = useCallback(async () => {
     if (!user?.id) return false;
     
     try {
-      const data = await ApiClient.get<{ connected: boolean }>(`/api/calendar/status/${user.id}`);
+      const response = await fetch(buildApiUrl(`calendar/status/${user.id}`));
+      const data = await response.json();
       setIsConnected(data.connected);
       return data.connected;
     } catch (error) {
@@ -50,17 +52,17 @@ export const CalendarView: React.FC = () => {
     setError(null);
     
     try {
-      const data = await ApiClient.get<{ success: boolean; events: CalendarEvent[]; error?: string }>(`/api/calendar/events/${user.id}`);
+      const response = await fetch(buildApiUrl(`calendar/events/${user.id}`));
+      const data = await response.json();
       
       if (data.success) {
         setEvents(data.events);
       } else {
         throw new Error(data.error || 'Failed to fetch events');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching events:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Etkinlikler yüklenirken bir hata oluştu';
-      setError(errorMessage);
+      setError(error instanceof Error ? error.message : 'Etkinlikler yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -74,17 +76,18 @@ export const CalendarView: React.FC = () => {
     }
     
     try {
-      const data = await ApiClient.get<{ authUrl?: string; error?: string }>(`/api/calendar/auth-url/${user.id}`);
+      const response = await fetch(buildApiUrl(`calendar/auth-url/${user.id}`));
+      const data = await response.json();
       
       if (data.authUrl) {
+        // setAuthUrl(data.authUrl);
         window.open(data.authUrl, '_blank');
       } else {
         throw new Error(data.error || 'Auth URL alınamadı');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error getting auth URL:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Yetkilendirme URL\'si alınırken bir hata oluştu';
-      setError(errorMessage);
+      setError(error instanceof Error ? error.message : 'Yetkilendirme URL\'si alınırken bir hata oluştu');
     }
   };
 
