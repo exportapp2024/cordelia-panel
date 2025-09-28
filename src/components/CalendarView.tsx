@@ -167,29 +167,13 @@ export const CalendarView: React.FC = () => {
               Google Calendar hesabınızı bağlayın.
             </p>
             
-            <div className="space-y-4">
-              <button
-                onClick={getAuthUrl}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2 mx-auto"
-              >
-                <ExternalLink className="w-5 h-5" />
-                <span>Google Calendar'ı Bağla</span>
-              </button>
-              
-              <button
-                onClick={async () => {
-                  const connected = await checkConnection();
-                  if (connected) {
-                    setIsConnected(true);
-                    await fetchEvents();
-                  }
-                }}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 mx-auto"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Bağlantıyı Kontrol Et</span>
-              </button>
-            </div>
+            <button
+              onClick={getAuthUrl}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2 mx-auto"
+            >
+              <ExternalLink className="w-5 h-5" />
+              <span>Google Calendar'ı Bağla</span>
+            </button>
             
             <p className="text-xs text-gray-500 mt-4">
               Google hesabınızla güvenli bir şekilde bağlanacaksınız
