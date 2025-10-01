@@ -209,7 +209,7 @@ export const SettingsView: React.FC = () => {
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <h3 className="font-medium text-blue-900 mb-2">Telegram Bot'unuzu Bağlayın</h3>
             <p className="text-sm text-blue-700 mb-4">
-              AI asistanımız aracılığıyla hasta bilgilerini almak ve göndermek için Telegram hesabınızı bağlayın.
+              Hasta bilgilerini almak ve göndermek için Telegram hesabınızı bağlayın.
             </p>
             
             <div className="space-y-3">

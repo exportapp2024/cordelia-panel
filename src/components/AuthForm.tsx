@@ -161,7 +161,7 @@ export const AuthForm: React.FC = () => {
               <img src={cordeliaLogo} alt="Cordelia" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Cordelia</h1>
-            <p className="text-gray-600 mt-2">Tıbbi AI Asistan Platformunuz</p>
+            <p className="text-gray-600 mt-2">Tıbbi Platformunuz</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

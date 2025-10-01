@@ -13,10 +13,4 @@ export interface Meeting {
   status: 'upcoming' | 'completed' | 'cancelled';
 }
 
-export interface AgentStatus {
-  connected: boolean;
-  lastSync: string;
-  version: string;
-}
-
-export type ViewType = 'meetings' | 'agent' | 'settings';
+export type ViewType = 'meetings' | 'calendar' | 'patients' | 'settings';

@@ -71,38 +71,6 @@ export interface Database {
           updated_at?: string;
         };
       };
-      agent_settings: {
-        Row: {
-          id: string;
-          user_id: string;
-          connected: boolean;
-          version: string;
-          last_sync: string;
-          calendar_connected: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          connected?: boolean;
-          version?: string;
-          last_sync?: string;
-          calendar_connected?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          connected?: boolean;
-          version?: string;
-          last_sync?: string;
-          calendar_connected?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
       patients: {
         Row: {
           id: string;

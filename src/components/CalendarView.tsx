@@ -163,7 +163,7 @@ export const CalendarView: React.FC = () => {
               Google Calendar Bağlantısı
             </h2>
             <p className="text-gray-600 mb-6">
-              Randevularınızı yönetmek ve AI asistanınızın takviminize erişmesi için 
+              Randevularınızı yönetmek için 
               Google Calendar hesabınızı bağlayın.
             </p>
             

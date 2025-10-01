@@ -1,17 +1,13 @@
 import React from 'react';
 import { Calendar, Clock, User, Plus } from 'lucide-react';
 import { useMeetings, Meeting } from '../hooks/useMeetings';
+import { getTurkishToday, formatTurkishDate } from '../utils/timezone';
 
 export const MeetingsView: React.FC = () => {
   const { meetings, loading } = useMeetings();
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('tr-TR', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
-    });
+    return formatTurkishDate(dateStr);
   };
 
   const getStatusColor = (status: Meeting['status']) => {
@@ -28,7 +24,7 @@ export const MeetingsView: React.FC = () => {
   };
 
   const todaysMeetings = meetings.filter(meeting => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTurkishToday();
     return meeting.date === today;
   }).length;
 

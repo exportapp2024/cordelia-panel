@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { MeetingsView } from './MeetingsView';
 import { CalendarView } from './CalendarView';
-import { AgentView } from './AgentView';
 import { SettingsView } from './SettingsView';
 import { PatientsView } from './PatientsView';
 import { ViewType } from '../types';
@@ -18,8 +17,6 @@ export const Dashboard: React.FC = () => {
         return <CalendarView />;
       case 'patients':
         return <PatientsView />;
-      case 'agent':
-        return <AgentView />;
       case 'settings':
         return <SettingsView />;
       default:
