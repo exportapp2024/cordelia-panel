@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Bot, Settings, Users, LogOut, CalendarDays } from 'lucide-react';
+import { Calendar, Settings, Users, LogOut, CalendarDays } from 'lucide-react';
 import { ViewType } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import cordeliaLogo from '../assets/cordelia.png';
@@ -15,7 +15,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) =
     { id: 'meetings' as ViewType, label: 'Randevular', icon: Calendar },
     { id: 'calendar' as ViewType, label: 'Google Calendar', icon: CalendarDays },
     { id: 'patients' as ViewType, label: 'Hastalar', icon: Users },
-    { id: 'agent' as ViewType, label: 'AI Asistan', icon: Bot },
     { id: 'settings' as ViewType, label: 'Ayarlar', icon: Settings },
   ];
 
@@ -30,7 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) =
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Cordelia</h1>
-            <p className="text-sm text-gray-500">Tıbbi AI Platformu</p>
+            <p className="text-sm text-gray-500">Tıbbi Platform</p>
           </div>
         </div>
       </div>
