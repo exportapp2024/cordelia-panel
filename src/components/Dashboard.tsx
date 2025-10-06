@@ -1,34 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { MeetingsView } from './MeetingsView';
 import { SettingsView } from './SettingsView';
 import { PatientsView } from './PatientsView';
-import { CalendarSuccessView } from './CalendarSuccessView';
 import { ViewType } from '../types';
 
 export const Dashboard: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewType>('meetings');
-  const [showCalendarSuccess, setShowCalendarSuccess] = useState(false);
-
-  // Check for calendar connection success
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('connected') === 'true') {
-      setShowCalendarSuccess(true);
-      // Clean up URL
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, []);
-
-  const handleNavigateHome = () => {
-    setShowCalendarSuccess(false);
-    setCurrentView('meetings');
-  };
-
-  // Show calendar success screen if connected
-  if (showCalendarSuccess) {
-    return <CalendarSuccessView onNavigateHome={handleNavigateHome} />;
-  }
 
   const renderCurrentView = () => {
     switch (currentView) {

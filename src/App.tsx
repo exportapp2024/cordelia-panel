@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { AuthForm } from './components/AuthForm';
 import { Dashboard } from './components/Dashboard';
 import { EmailVerificationView } from './components/EmailVerificationView';
+import { CalendarSuccessView } from './components/CalendarSuccessView';
 import { useAuth } from './hooks/useAuth';
 import { supabase } from './lib/supabase';
 
@@ -73,15 +75,51 @@ function App() {
       </div>
     );
   }
+
   if (!user) {
-    return <AuthForm />;
+    return (
+      <BrowserRouter>
+        <AuthForm />
+      </BrowserRouter>
+    );
   }
 
   if (needsEmailVerification) {
-    return <EmailVerificationView />;
+    return (
+      <BrowserRouter>
+        <EmailVerificationView />
+      </BrowserRouter>
+    );
   }
 
-  return <Dashboard />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/calendar" element={<CalendarSuccessRoute />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+// Separate component for calendar success route
+function CalendarSuccessRoute() {
+  const [showSuccess, setShowSuccess] = React.useState(false);
+
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('connected') === 'true') {
+      setShowSuccess(true);
+    }
+  }, []);
+
+  if (showSuccess) {
+    return <CalendarSuccessView onNavigateHome={() => window.location.href = '/'} />;
+  }
+
+  // If no success parameter, redirect to home
+  return <Navigate to="/" replace />;
 }
 
 export default App;
