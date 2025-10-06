@@ -13,4 +13,4 @@ export interface Meeting {
   status: 'upcoming' | 'completed' | 'cancelled';
 }
 
-export type ViewType = 'meetings' | 'calendar' | 'patients' | 'settings';
+export type ViewType = 'meetings' | 'patients' | 'settings';

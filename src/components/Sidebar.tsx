@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Settings, Users, LogOut, CalendarDays } from 'lucide-react';
+import { Calendar, Settings, Users, LogOut } from 'lucide-react';
 import { ViewType } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import cordeliaLogo from '../assets/cordelia.png';
@@ -13,7 +13,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) =
   const { user, signOut } = useAuth();
   const menuItems = [
     { id: 'meetings' as ViewType, label: 'Randevular', icon: Calendar },
-    { id: 'calendar' as ViewType, label: 'Google Calendar', icon: CalendarDays },
     { id: 'patients' as ViewType, label: 'Hastalar', icon: Users },
     { id: 'settings' as ViewType, label: 'Ayarlar', icon: Settings },
   ];
