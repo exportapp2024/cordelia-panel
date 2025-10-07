@@ -105,16 +105,11 @@ function App() {
 
 // Separate component for calendar success route
 function CalendarSuccessRoute() {
-  const [showSuccess, setShowSuccess] = React.useState(false);
+  // Check URL parameter immediately during initialization
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasConnectedParam = urlParams.get('connected') === 'true';
 
-  React.useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('connected') === 'true') {
-      setShowSuccess(true);
-    }
-  }, []);
-
-  if (showSuccess) {
+  if (hasConnectedParam) {
     return <CalendarSuccessView onNavigateHome={() => window.location.href = '/'} />;
   }
 
