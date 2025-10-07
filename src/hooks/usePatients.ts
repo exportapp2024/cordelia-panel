@@ -32,10 +32,11 @@ export const usePatients = (userId: string | null) => {
 
   const addPatient = async (patientData: {
     name: string;
-    age?: number | null;
-    condition?: string | null;
+    national_id?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    reason?: string | null;
     notes?: string | null;
-    contact?: string | null;
   }) => {
     if (!userId) {
       throw new Error('User ID is required');
@@ -58,10 +59,7 @@ export const usePatients = (userId: string | null) => {
       }
 
       const data = await response.json();
-      
-      // Refresh the patients list
       await fetchPatients();
-      
       return data.patient;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -69,6 +67,30 @@ export const usePatients = (userId: string | null) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const updatePatient = async (patientId: string, partialData: Record<string, any>) => {
+    if (!userId) throw new Error('User ID is required');
+    const response = await fetch(buildApiUrl(`users/${userId}/patients/${patientId}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: partialData })
+    });
+    if (!response.ok) throw new Error('Failed to update patient');
+    await fetchPatients();
+  };
+
+  const updateNotes = async (patientId: string, notes: string | null) => {
+    return updatePatient(patientId, { notes });
+  };
+
+  const deletePatient = async (patientId: string) => {
+    if (!userId) throw new Error('User ID is required');
+    const response = await fetch(buildApiUrl(`users/${userId}/patients/${patientId}`), {
+      method: 'DELETE'
+    });
+    if (!response.ok) throw new Error('Failed to delete patient');
+    await fetchPatients();
   };
 
   useEffect(() => {
@@ -80,6 +102,9 @@ export const usePatients = (userId: string | null) => {
     loading,
     error,
     addPatient,
+    updatePatient,
+    updateNotes,
+    deletePatient,
     refetch: fetchPatients,
   };
 };

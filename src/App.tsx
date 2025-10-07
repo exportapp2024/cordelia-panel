@@ -6,6 +6,7 @@ import { Dashboard } from './components/Dashboard';
 import { EmailVerificationView } from './components/EmailVerificationView';
 import { CalendarSuccessView } from './components/CalendarSuccessView';
 import { useAuth } from './hooks/useAuth';
+import { ChatWidget } from './components/ChatWidget';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -99,6 +100,7 @@ function App() {
         <Route path="/calendar" element={<CalendarSuccessRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <ChatWidget />
     </BrowserRouter>
   );
 }

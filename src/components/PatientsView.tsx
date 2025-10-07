@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, User, Calendar, FileText, Phone, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, User, Calendar, FileEdit, Phone, Loader2, AlertCircle, RefreshCw, MoreHorizontal, Edit3, Trash2 } from 'lucide-react';
 import { usePatients } from '../hooks/usePatients';
 import { useAuth } from '../hooks/useAuth';
 
@@ -8,10 +8,11 @@ interface AddPatientModalProps {
   onClose: () => void;
   onAdd: (patientData: {
     name: string;
-    age?: number | null;
-    condition?: string | null;
+    national_id?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    reason?: string | null;
     notes?: string | null;
-    contact?: string | null;
   }) => Promise<void>;
   loading: boolean;
 }
@@ -19,10 +20,11 @@ interface AddPatientModalProps {
 const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAdd, loading }) => {
   const [formData, setFormData] = useState({
     name: '',
-    age: '',
-    condition: '',
+    reason: '',
     notes: '',
-    contact: '',
+    national_id: '',
+    phone: '',
+    address: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,19 +35,21 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
     try {
       await onAdd({
         name: formData.name.trim(),
-        age: formData.age ? parseInt(formData.age) || null : null,
-        condition: formData.condition.trim() || null,
+        national_id: formData.national_id.trim() || null,
+        phone: formData.phone.trim() || null,
+        address: formData.address.trim() || null,
+        reason: formData.reason.trim() || null,
         notes: formData.notes.trim() || null,
-        contact: formData.contact.trim() || null,
       });
       
       // Reset form
       setFormData({
         name: '',
-        age: '',
-        condition: '',
+        reason: '',
         notes: '',
-        contact: '',
+        national_id: '',
+        phone: '',
+        address: '',
       });
       
       onClose();
@@ -78,43 +82,53 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Yaş
+              TC / Pasaport No
             </label>
             <input
-              type="number"
-              value={formData.age}
-              onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+              type="text"
+              value={formData.national_id}
+              onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              min="0"
-              max="150"
               disabled={loading}
             />
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Durum
+              Telefon
             </label>
             <input
               type="text"
-              value={formData.condition}
-              onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              disabled={loading}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Adres
+            </label>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              disabled={loading}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Başvuru Nedeni
+            </label>
+            <input
+              type="text"
+              value={formData.reason}
+              onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               placeholder="örn. Migren, Yüksek Tansiyon"
-              disabled={loading}
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              İletişim Bilgisi
-            </label>
-            <input
-              type="text"
-              value={formData.contact}
-              onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              placeholder="Telefon numarası veya email"
               disabled={loading}
             />
           </div>
@@ -165,16 +179,29 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
 
 export const PatientsView: React.FC = () => {
   const { user } = useAuth();
-  const { patients, loading, error, addPatient } = usePatients(user?.id || null);
+  const { patients, loading, error, addPatient, updateNotes, updatePatient, deletePatient, refetch } = usePatients(user?.id || null);
+  const [editingPatient, setEditingPatient] = useState<{ id: string; current: string } | null>(null);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editFull, setEditFull] = useState<{
+    id: string;
+    name: string;
+    national_id: string;
+    phone: string;
+    address: string;
+    reason: string;
+    notes: string;
+  } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
   const handleAddPatient = async (patientData: {
     name: string;
-    age?: number | null;
-    condition?: string | null;
+    national_id?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    reason?: string | null;
     notes?: string | null;
-    contact?: string | null;
   }) => {
     setIsAdding(true);
     try {
@@ -196,9 +223,21 @@ export const PatientsView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Hastalar</h1>
-          <p className="text-gray-600 mt-1">Hasta kayıtlarınızı yönetin</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Hastalar</h1>
+            <p className="text-gray-600 mt-1">Hasta kayıtlarınızı yönetin</p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => refetch()}
+              className="inline-flex items-center px-3 py-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
+              title="Yenile"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Yenile
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -227,21 +266,13 @@ export const PatientsView: React.FC = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Hasta
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Yaş
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Durum
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      İletişim
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Oluşturulma
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad Soyad</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TC / Pasaport No</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adres</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Başvuru Nedeni</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notlar</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturulma</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -253,40 +284,79 @@ export const PatientsView: React.FC = () => {
                             <User className="w-5 h-5 text-emerald-600" />
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {patient.data.name}
-                            </div>
-                            {patient.data.notes && (
-                              <div className="text-sm text-gray-500 flex items-center">
-                                <FileText className="w-4 h-4 mr-1" />
-                                {patient.data.notes.length > 50
-                                  ? `${patient.data.notes.substring(0, 50)}...`
-                                  : patient.data.notes}
-                              </div>
-                            )}
+                            <div className="text-sm font-medium text-gray-900">{patient.data.name || '—'}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {patient.data.age || '—'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {patient.data.condition || '—'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {patient.data.contact ? (
-                          <div className="flex items-center">
-                            <Phone className="w-4 h-4 mr-1 text-gray-400" />
-                            {patient.data.contact}
-                          </div>
-                        ) : (
-                          '—'
-                        )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.national_id || '—'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.phone || '—'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.address || '—'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.reason || '—'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={() => { setEditingPatient({ id: patient.id, current: patient.data.notes || '' }); setNotesDraft(patient.data.notes || ''); }}
+                          className="inline-flex items-center p-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
+                          title="Notu Gör/Düzenle"
+                          aria-label="Notu Gör/Düzenle"
+                        >
+                          <FileEdit className="w-4 h-4" />
+                        </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex items-center">
                           <Calendar className="w-4 h-4 mr-1" />
                           {formatDate(patient.created_at)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                        <div className="relative inline-block text-left">
+                          <button
+                            onClick={() => setOpenMenuId((prev) => (prev === patient.id ? null : patient.id))}
+                            className="inline-flex items-center p-2 rounded-md hover:bg-gray-100"
+                            aria-haspopup="true"
+                            aria-expanded={openMenuId === patient.id}
+                          >
+                            <MoreHorizontal className="w-5 h-5" />
+                          </button>
+
+                          {openMenuId === patient.id && (
+                            <>
+                              {/* Backdrop to close on outside click */}
+                              <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)}></div>
+                              <div className="absolute right-0 mt-2 w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
+                                <div className="py-1 flex flex-col">
+                                  <button
+                                    onClick={() => {
+                                      setEditFull({
+                                        id: patient.id,
+                                        name: patient.data.name || '',
+                                        national_id: patient.data.national_id || '',
+                                        phone: patient.data.phone || '',
+                                        address: patient.data.address || '',
+                                        reason: patient.data.reason || '',
+                                        notes: patient.data.notes || '',
+                                      });
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                                  >
+                                    <Edit3 className="w-4 h-4 mr-2" /> Düzenle
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      setOpenMenuId(null);
+                                      if (confirm('Bu hastayı silmek istediğinize emin misiniz?')) {
+                                        await deletePatient(patient.id);
+                                      }
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm text-red-700 hover:bg-gray-50 flex items-center"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" /> Sil
+                                  </button>
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -303,6 +373,129 @@ export const PatientsView: React.FC = () => {
           onAdd={handleAddPatient}
           loading={isAdding}
         />
+
+      {/* Notes Modal */}
+      {editingPatient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">Notları Düzenle</h3>
+            <textarea
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              rows={6}
+            />
+            <div className="flex justify-end space-x-2 mt-4">
+              <button
+                onClick={() => setEditingPatient(null)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                İptal
+              </button>
+              <button
+                onClick={async () => {
+                  if (editingPatient) {
+                    await updateNotes(editingPatient.id, notesDraft.trim() || null);
+                    setEditingPatient(null);
+                  }
+                }}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+              >
+                Kaydet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Edit Modal */}
+      {editFull && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
+            <h3 className="text-lg font-semibold mb-4">Hasta Bilgilerini Düzenle</h3>
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ad Soyad</label>
+                <input
+                  type="text"
+                  value={editFull.name}
+                  onChange={(e) => setEditFull({ ...editFull, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">TC / Pasaport No</label>
+                <input
+                  type="text"
+                  value={editFull.national_id}
+                  onChange={(e) => setEditFull({ ...editFull, national_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+                <input
+                  type="text"
+                  value={editFull.phone}
+                  onChange={(e) => setEditFull({ ...editFull, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Adres</label>
+                <input
+                  type="text"
+                  value={editFull.address}
+                  onChange={(e) => setEditFull({ ...editFull, address: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Başvuru Nedeni</label>
+                <input
+                  type="text"
+                  value={editFull.reason}
+                  onChange={(e) => setEditFull({ ...editFull, reason: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notlar</label>
+                <textarea
+                  rows={4}
+                  value={editFull.notes}
+                  onChange={(e) => setEditFull({ ...editFull, notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 mt-6">
+              <button
+                onClick={() => setEditFull(null)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                İptal
+              </button>
+              <button
+                onClick={async () => {
+                  await updatePatient(editFull.id, {
+                    name: editFull.name || null,
+                    national_id: editFull.national_id || null,
+                    phone: editFull.phone || null,
+                    address: editFull.address || null,
+                    reason: editFull.reason || null,
+                    notes: editFull.notes || null,
+                  });
+                  setEditFull(null);
+                }}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+              >
+                Kaydet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
