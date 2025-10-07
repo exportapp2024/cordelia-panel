@@ -91,7 +91,7 @@ export const ChatWidget: React.FC = () => {
         <div className="fixed bottom-24 right-6 z-40 w-96 max-w-[95vw] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col h-[560px]">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">Cordelia Asistan</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Cordelia AI</h3>
               <p className="text-xs text-gray-500">Randevu ve hasta işlemleri için yazın</p>
             </div>
           </div>
