@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Mail, Shield, LogOut, MessageCircle, Copy, Check } from 'lucide-react';
+import { User, Mail, Shield, LogOut } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 
@@ -11,7 +11,6 @@ export const SettingsView: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -93,12 +92,6 @@ export const SettingsView: React.FC = () => {
 
       if (patientsError) throw patientsError;
 
-      const { error: telegramError } = await supabase
-        .from('telegram_users')
-        .delete()
-        .eq('user_id', user?.id);
-
-      if (telegramError) throw telegramError;
 
       const { error: profileError } = await supabase
         .from('profiles')
@@ -123,17 +116,6 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const copyLinkingCode = async () => {
-    if (user?.id) {
-      try {
-        await navigator.clipboard.writeText(user.id);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (error) {
-        console.error('Failed to copy:', error);
-      }
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -198,67 +180,6 @@ export const SettingsView: React.FC = () => {
       </div>
 
 
-      {/* Telegram Integration */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center space-x-3 mb-6">
-          <MessageCircle className="w-6 h-6 text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Telegram Entegrasyonu</h2>
-        </div>
-        
-        <div className="space-y-4">
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 className="font-medium text-blue-900 mb-2">Telegram Bot'unuzu Bağlayın</h3>
-            <p className="text-sm text-blue-700 mb-4">
-              Hasta bilgilerini almak ve göndermek için Telegram hesabınızı bağlayın.
-            </p>
-            
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-blue-900 mb-1">
-                  Bağlantı Kodunuz:
-                </label>
-                <div className="flex items-center space-x-2">
-                  <code className="flex-1 px-3 py-2 bg-blue-100 border border-blue-300 rounded text-sm font-mono text-blue-900">
-                    {user?.id || 'Yükleniyor...'}
-                  </code>
-                  <button
-                    onClick={copyLinkingCode}
-                    className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center space-x-1"
-                  >
-                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    <span className="text-sm">{copied ? 'Kopyalandı!' : 'Kopyala'}</span>
-                  </button>
-                </div>
-              </div>
-              
-              <div className="text-sm text-blue-700">
-                <p className="font-medium mb-1">Kurulum Talimatları:</p>
-                <ol className="list-decimal list-inside space-y-1 ml-2">
-                  <li>Telegram'da Cordelia bot'unuzla sohbet başlatın</li>
-                  <li>Komutu gönderin: <code className="bg-blue-100 px-1 rounded">/start</code></li>
-                  <li>Gönderin: <code className="bg-blue-100 px-1 rounded">/link {user?.id?.slice(0, 8)}...</code> (yukarıdaki tam kodu kopyalayın)</li>
-                  <li>Hasta bilgilerini göndermeye başlayın!</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-4 border border-gray-200 rounded-lg">
-            <h3 className="font-medium text-gray-900 mb-2">Kullanım Örnekleri</h3>
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="bg-gray-50 p-2 rounded">
-                <code>"Yeni hasta ekle: Ahmet Yılmaz, 35, migren ağrısı"</code>
-              </div>
-              <div className="bg-gray-50 p-2 rounded">
-                <code>"Hasta: Ayşe Demir, 42, diyabet kontrolü, ilaç gözden geçirilmeli"</code>
-              </div>
-              <div className="bg-gray-50 p-2 rounded">
-                <code>"Yeni hasta: Zeynep Kaya, 28, anksiyete bozukluğu, ilk konsültasyon"</code>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Security */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

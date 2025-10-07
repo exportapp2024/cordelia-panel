@@ -19,6 +19,8 @@ export const ChatWidget: React.FC = () => {
       .replace(/>/g, '&gt;');
 
     let text = escapeHtml(raw);
+    // links [text](url)
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline text-blue-600 hover:text-blue-800">$1</a>');
     // inline code
     text = text.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-gray-100 rounded text-gray-800">$1</code>');
     // bold
@@ -102,7 +104,10 @@ export const ChatWidget: React.FC = () => {
             )}
             {messages.map((m, idx) => (
               <div key={m.id || idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`${m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-800'} px-3 py-2 rounded-lg max-w-[80%] text-sm`} dangerouslySetInnerHTML={{ __html: renderMarkdownHtml(m.content) }}>
+                <div 
+                  className={`${m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-800'} px-3 py-2 rounded-lg max-w-[80%] text-sm break-normal hyphens-auto`}
+                  dangerouslySetInnerHTML={{ __html: renderMarkdownHtml(m.content) }}
+                >
                 </div>
               </div>
             ))}

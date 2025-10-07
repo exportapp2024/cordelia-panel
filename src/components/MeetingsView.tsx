@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Clock, User, RefreshCw, Settings, ExternalLink } from 'lucide-react';
+import { Calendar, Clock, User, RefreshCw, Settings, ExternalLink, Plus, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { buildApiUrl } from '../lib/api';
 
@@ -26,12 +26,23 @@ export const MeetingsView: React.FC = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [checkingConnection, setCheckingConnection] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    date: '',
+    time: '',
+    duration: '60',
+    notes: ''
+  });
 
   // Check calendar connection status
   const checkConnection = useCallback(async () => {
     if (!user?.id) return false;
     
+    setCheckingConnection(true);
     try {
       const response = await fetch(buildApiUrl(`calendar/status/${user.id}`));
       const data = await response.json();
@@ -40,6 +51,8 @@ export const MeetingsView: React.FC = () => {
     } catch (error) {
       console.error('Error checking calendar connection:', error);
       return false;
+    } finally {
+      setCheckingConnection(false);
     }
   }, [user?.id]);
 
@@ -57,11 +70,23 @@ export const MeetingsView: React.FC = () => {
       if (data.success) {
         setEvents(data.events);
       } else {
-        throw new Error(data.error || 'Failed to fetch events');
+        // Check if token expired
+        if (data.error?.includes('invalid_grant') || data.error?.includes('expired') || data.error?.includes('revoked')) {
+          setIsConnected(false);
+          setError('Google Calendar bağlantınızın süresi dolmuş. Lütfen tekrar bağlayın.');
+        } else {
+          throw new Error(data.error || 'Failed to fetch events');
+        }
       }
     } catch (error: unknown) {
       console.error('Error fetching events:', error);
-      setError(error instanceof Error ? error.message : 'Etkinlikler yüklenirken bir hata oluştu');
+      const errorMsg = error instanceof Error ? error.message : 'Etkinlikler yüklenirken bir hata oluştu';
+      if (errorMsg.includes('invalid_grant') || errorMsg.includes('expired') || errorMsg.includes('revoked')) {
+        setIsConnected(false);
+        setError('Google Calendar bağlantınızın süresi dolmuş. Lütfen tekrar bağlayın.');
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -146,13 +171,70 @@ export const MeetingsView: React.FC = () => {
     });
   };
 
-  if (!isConnected) {
+  // Create new appointment
+  const createAppointment = async () => {
+    if (!user?.id || !formData.title || !formData.date || !formData.time) {
+      setError('Lütfen tüm zorunlu alanları doldurun');
+      return;
+    }
+
+    setCreating(true);
+    setError(null);
+
+    try {
+      const response = await fetch(buildApiUrl(`calendar/events/${user.id}`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          date: formData.date,
+          time: formData.time,
+          duration_minutes: parseInt(formData.duration),
+          notes: formData.notes || undefined
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setShowCreateModal(false);
+        setFormData({ title: '', date: '', time: '', duration: '60', notes: '' });
+        await fetchEvents();
+      } else {
+        throw new Error(data.error || 'Randevu oluşturulamadı');
+      }
+    } catch (error: unknown) {
+      console.error('Error creating appointment:', error);
+      setError(error instanceof Error ? error.message : 'Randevu oluşturulurken bir hata oluştu');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  if (checkingConnection) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <RefreshCw className="w-8 h-8 animate-spin text-emerald-600" />
+        <span className="ml-2 text-gray-600">Takvim bağlantısı kontrol ediliyor...</span>
+      </div>
+    );
+  }
+
+  if (isConnected === false) {
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Randevular</h1>
           <p className="text-gray-600">Takviminizi yönetmek için Google Calendar'ı bağlayın</p>
         </div>
+
+        {error && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-800 text-sm">{error}</p>
+          </div>
+        )}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="text-center">
@@ -191,6 +273,14 @@ export const MeetingsView: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Yeni Randevu</span>
+          </button>
+          
           <button
             onClick={fetchEvents}
             disabled={loading}
@@ -295,6 +385,118 @@ export const MeetingsView: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Create Appointment Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Yeni Randevu Oluştur</h2>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setFormData({ title: '', date: '', time: '', duration: '60', notes: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Başlık <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Örn: Toplantı: Ahmet Yılmaz"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tarih <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Saat <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="time"
+                  value={formData.time}
+                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Süre (dakika)
+                </label>
+                <input
+                  type="number"
+                  value={formData.duration}
+                  onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                  min="15"
+                  step="15"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notlar
+                </label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Ek notlar..."
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setFormData({ title: '', date: '', time: '', duration: '60', notes: '' });
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                İptal
+              </button>
+              <button
+                onClick={createAppointment}
+                disabled={creating || !formData.title || !formData.date || !formData.time}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {creating ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Oluşturuluyor...</span>
+                  </>
+                ) : (
+                  <span>Oluştur</span>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
