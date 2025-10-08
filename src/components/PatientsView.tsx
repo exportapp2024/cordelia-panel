@@ -223,9 +223,9 @@ export const PatientsView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Hastalar</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Hastalar</h1>
             <p className="text-gray-600 mt-1">Hasta kayıtlarınızı yönetin</p>
           </div>
           <div className="flex items-center space-x-2">
@@ -235,7 +235,7 @@ export const PatientsView: React.FC = () => {
               title="Yenile"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
-              Yenile
+              <span className="hidden sm:inline">Yenile</span>
             </button>
           </div>
         </div>
@@ -261,110 +261,227 @@ export const PatientsView: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad Soyad</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TC / Pasaport No</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adres</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Başvuru Nedeni</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notlar</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturulma</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {patients.map((patient) => (
-                    <tr key={patient.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                            <User className="w-5 h-5 text-emerald-600" />
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad Soyad</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TC / Pasaport No</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adres</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Başvuru Nedeni</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notlar</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturulma</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {patients.map((patient) => (
+                      <tr key={patient.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                              <User className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{patient.data.name || '—'}</div>
+                            </div>
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{patient.data.name || '—'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.national_id || '—'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.phone || '—'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.address || '—'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.reason || '—'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => { setEditingPatient({ id: patient.id, current: patient.data.notes || '' }); setNotesDraft(patient.data.notes || ''); }}
+                            className="inline-flex items-center p-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
+                            title="Notu Gör/Düzenle"
+                            aria-label="Notu Gör/Düzenle"
+                          >
+                            <FileEdit className="w-4 h-4" />
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <Calendar className="w-4 h-4 mr-1" />
+                            {formatDate(patient.created_at)}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.national_id || '—'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.phone || '—'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.address || '—'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.reason || '—'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() => { setEditingPatient({ id: patient.id, current: patient.data.notes || '' }); setNotesDraft(patient.data.notes || ''); }}
-                          className="inline-flex items-center p-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
-                          title="Notu Gör/Düzenle"
-                          aria-label="Notu Gör/Düzenle"
-                        >
-                          <FileEdit className="w-4 h-4" />
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex items-center">
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                          <div className="relative inline-block text-left">
+                            <button
+                              onClick={() => setOpenMenuId((prev) => (prev === patient.id ? null : patient.id))}
+                              className="inline-flex items-center p-2 rounded-md hover:bg-gray-100"
+                              aria-haspopup="true"
+                              aria-expanded={openMenuId === patient.id}
+                            >
+                              <MoreHorizontal className="w-5 h-5" />
+                            </button>
+
+                            {openMenuId === patient.id && (
+                              <>
+                                {/* Backdrop to close on outside click */}
+                                <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)}></div>
+                                <div className="absolute right-0 mt-2 w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
+                                  <div className="py-1 flex flex-col">
+                                    <button
+                                      onClick={() => {
+                                        setEditFull({
+                                          id: patient.id,
+                                          name: patient.data.name || '',
+                                          national_id: patient.data.national_id || '',
+                                          phone: patient.data.phone || '',
+                                          address: patient.data.address || '',
+                                          reason: patient.data.reason || '',
+                                          notes: patient.data.notes || '',
+                                        });
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                                    >
+                                      <Edit3 className="w-4 h-4 mr-2" /> Düzenle
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        setOpenMenuId(null);
+                                        if (confirm('Bu hastayı silmek istediğinize emin misiniz?')) {
+                                          await deletePatient(patient.id);
+                                        }
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-sm text-red-700 hover:bg-gray-50 flex items-center"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" /> Sil
+                                    </button>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4">
+              {patients.map((patient) => (
+                <div key={patient.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">{patient.data.name || '—'}</h3>
+                        <p className="text-sm text-gray-500 flex items-center">
                           <Calendar className="w-4 h-4 mr-1" />
                           {formatDate(patient.created_at)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                        <div className="relative inline-block text-left">
-                          <button
-                            onClick={() => setOpenMenuId((prev) => (prev === patient.id ? null : patient.id))}
-                            className="inline-flex items-center p-2 rounded-md hover:bg-gray-100"
-                            aria-haspopup="true"
-                            aria-expanded={openMenuId === patient.id}
-                          >
-                            <MoreHorizontal className="w-5 h-5" />
-                          </button>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenMenuId((prev) => (prev === patient.id ? null : patient.id))}
+                        className="inline-flex items-center p-2 rounded-md hover:bg-gray-100"
+                        aria-haspopup="true"
+                        aria-expanded={openMenuId === patient.id}
+                      >
+                        <MoreHorizontal className="w-5 h-5" />
+                      </button>
 
-                          {openMenuId === patient.id && (
-                            <>
-                              {/* Backdrop to close on outside click */}
-                              <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)}></div>
-                              <div className="absolute right-0 mt-2 w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
-                                <div className="py-1 flex flex-col">
-                                  <button
-                                    onClick={() => {
-                                      setEditFull({
-                                        id: patient.id,
-                                        name: patient.data.name || '',
-                                        national_id: patient.data.national_id || '',
-                                        phone: patient.data.phone || '',
-                                        address: patient.data.address || '',
-                                        reason: patient.data.reason || '',
-                                        notes: patient.data.notes || '',
-                                      });
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
-                                  >
-                                    <Edit3 className="w-4 h-4 mr-2" /> Düzenle
-                                  </button>
-                                  <button
-                                    onClick={async () => {
-                                      setOpenMenuId(null);
-                                      if (confirm('Bu hastayı silmek istediğinize emin misiniz?')) {
-                                        await deletePatient(patient.id);
-                                      }
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm text-red-700 hover:bg-gray-50 flex items-center"
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" /> Sil
-                                  </button>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      {openMenuId === patient.id && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)}></div>
+                          <div className="absolute right-0 mt-2 w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
+                            <div className="py-1 flex flex-col">
+                              <button
+                                onClick={() => {
+                                  setEditFull({
+                                    id: patient.id,
+                                    name: patient.data.name || '',
+                                    national_id: patient.data.national_id || '',
+                                    phone: patient.data.phone || '',
+                                    address: patient.data.address || '',
+                                    reason: patient.data.reason || '',
+                                    notes: patient.data.notes || '',
+                                  });
+                                  setOpenMenuId(null);
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                              >
+                                <Edit3 className="w-4 h-4 mr-2" /> Düzenle
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  setOpenMenuId(null);
+                                  if (confirm('Bu hastayı silmek istediğinize emin misiniz?')) {
+                                    await deletePatient(patient.id);
+                                  }
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-red-700 hover:bg-gray-50 flex items-center"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" /> Sil
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    {patient.data.national_id && (
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-gray-700">TC / Pasaport:</span>
+                        <span className="text-gray-900">{patient.data.national_id}</span>
+                      </div>
+                    )}
+                    {patient.data.phone && (
+                      <div className="flex items-center space-x-2">
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-900">{patient.data.phone}</span>
+                      </div>
+                    )}
+                    {patient.data.address && (
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-gray-700">Adres:</span>
+                        <span className="text-gray-900 break-words">{patient.data.address}</span>
+                      </div>
+                    )}
+                    {patient.data.reason && (
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-gray-700">Başvuru nedeni:</span>
+                        <span className="text-gray-900 break-words">{patient.data.reason}</span>
+                      </div>
+                    )}
+                    {patient.data.notes && (
+                      <div className="flex items-start space-x-2">
+                        <span className="font-medium text-gray-700">Notlar:</span>
+                        <span className="text-gray-900 break-words">{patient.data.notes}</span>
+                      </div>
+                    )}
+                    <div className="pt-2">
+                      <button
+                        onClick={() => { setEditingPatient({ id: patient.id, current: patient.data.notes || '' }); setNotesDraft(patient.data.notes || ''); }}
+                        className="inline-flex items-center px-3 py-1 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 text-sm"
+                        title="Notu Gör/Düzenle"
+                        aria-label="Notu Gör/Düzenle"
+                      >
+                        <FileEdit className="w-4 h-4 mr-1" />
+                        Notları Düzenle
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          </>
         )}
 
         <AddPatientModal

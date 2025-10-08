@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { MeetingsView } from './MeetingsView';
 import { SettingsView } from './SettingsView';
@@ -7,6 +7,19 @@ import { ViewType } from '../types';
 
 export const Dashboard: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewType>('meetings');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const renderCurrentView = () => {
     switch (currentView) {
@@ -22,14 +35,16 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex flex-col md:flex-row h-screen bg-gray-50">
       <Sidebar
         currentView={currentView}
         onViewChange={setCurrentView}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
       
-      <main className="flex-1 overflow-auto">
-        <div className="p-8">
+      <main className="flex-1 overflow-auto md:ml-0">
+        <div className="p-4 md:p-8">
           {renderCurrentView()}
         </div>
       </main>

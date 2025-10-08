@@ -153,9 +153,9 @@ export const AuthForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 mb-4">
               <img src={cordeliaLogo} alt="Cordelia" className="w-full h-full object-contain" />
@@ -254,7 +254,7 @@ export const AuthForm: React.FC = () => {
                     </span>
                   </div>
                   
-                  <div className="space-y-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                     <div className="flex items-center space-x-2">
                       <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
                         getPasswordValidation(password).length ? 'bg-green-100' : 'bg-gray-100'
@@ -315,7 +315,7 @@ export const AuthForm: React.FC = () => {
                       </span>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 sm:col-span-2">
                       <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
                         getPasswordValidation(password).symbol ? 'bg-green-100' : 'bg-gray-100'
                       }`}>

@@ -7,8 +7,8 @@ interface CalendarSuccessViewProps {
 
 export const CalendarSuccessView: React.FC<CalendarSuccessViewProps> = ({ onNavigateHome }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4 py-8">
+      <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 max-w-md w-full">
         {/* Success Icon */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-100 rounded-full mb-4">

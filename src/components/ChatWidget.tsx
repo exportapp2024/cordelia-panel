@@ -38,9 +38,14 @@ export const ChatWidget: React.FC = () => {
     if (!user || !threadId) return;
     try {
       const data = await fetchChatHistory({ userId: user.id, threadId });
-      const mapped = (data.messages || []).map((m) => ({ id: m.id, role: m.role as 'user'|'assistant', content: m.content || '', created_at: m.created_at }));
+      const mapped = (data.messages || []).map((m) => {
+        // Remove embedded patient data tags from display
+        let content = m.content || '';
+        content = content.replace(/\[PATIENTS:\[.+?\]\]\n?/g, '');
+        return { id: m.id, role: m.role as 'user'|'assistant', content, created_at: m.created_at };
+      });
       setMessages(mapped);
-    } catch (e) {
+    } catch {
       // noop
     }
   }, [user, threadId]);
@@ -66,7 +71,7 @@ export const ChatWidget: React.FC = () => {
       const res = await sendChatMessage({ userId: user.id, threadId, message: text });
       if (!threadId) setThreadId(res.thread_id);
       setMessages((prev) => [...prev, { role: 'assistant', content: res.message }]);
-    } catch (e) {
+    } catch {
       setMessages((prev) => [...prev, { role: 'assistant', content: 'Üzgünüm, bir hata oluştu.' }]);
     } finally {
       setLoading(false);
@@ -88,12 +93,18 @@ export const ChatWidget: React.FC = () => {
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-40 w-96 max-w-[95vw] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col h-[560px]">
+        <div className="fixed inset-0 md:inset-auto md:bottom-24 md:right-6 z-50 md:z-40 w-full md:w-96 md:max-w-[95vw] bg-white md:rounded-xl md:shadow-2xl md:border md:border-gray-200 overflow-hidden flex flex-col h-full md:h-[560px]">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Cordelia AI</h3>
-              <p className="text-xs text-gray-500">Randevu ve hasta işlemleri için yazın</p>
+              <p className="text-xs text-gray-500 hidden md:block">Randevu ve hasta işlemleri için yazın</p>
             </div>
+            <button
+              onClick={onToggle}
+              className="md:hidden p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           <div className="p-3 space-y-3 overflow-auto flex-1">

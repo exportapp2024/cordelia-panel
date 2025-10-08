@@ -172,7 +172,7 @@ export const SettingsView: React.FC = () => {
           <button 
             type="submit"
             disabled={loading}
-            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors"
           >
             {loading ? 'Güncelleniyor...' : 'Profili Güncelle'}
           </button>

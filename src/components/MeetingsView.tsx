@@ -266,37 +266,39 @@ export const MeetingsView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Randevular</h1>
           <p className="text-gray-600">Randevularınızı görüntüleyin ve yönetin</p>
         </div>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
           >
             <Plus className="w-4 h-4" />
             <span>Yeni Randevu</span>
           </button>
           
-          <button
-            onClick={fetchEvents}
-            disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            <span>Yenile</span>
-          </button>
-          
-          <button
-            onClick={getAuthUrl}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
-          >
-            <Settings className="w-4 h-4" />
-            <span>Ayarlar</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={fetchEvents}
+              disabled={loading}
+              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Yenile</span>
+            </button>
+            
+            <button
+              onClick={getAuthUrl}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Ayarlar</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -336,30 +338,30 @@ export const MeetingsView: React.FC = () => {
           {events.map((event) => (
             <div
               key={event.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+              className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 hover:shadow-md transition-shadow"
             >
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 break-words">
                     {event.summary}
                   </h3>
                   
                   {event.description && (
-                    <p className="text-gray-600 mb-3">{event.description}</p>
+                    <p className="text-gray-600 mb-3 break-words">{event.description}</p>
                   )}
                   
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-500">
                     <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>
+                      <Calendar className="w-4 h-4 flex-shrink-0" />
+                      <span className="break-words">
                         {formatDate(event.start.dateTime || event.start.date || '')}
                       </span>
                     </div>
                     
                     {event.start.dateTime && (
                       <div className="flex items-center space-x-1">
-                        <Clock className="w-4 h-4" />
-                        <span>
+                        <Clock className="w-4 h-4 flex-shrink-0" />
+                        <span className="break-words">
                           {formatTime(event.start.dateTime)} - {formatTime(event.end.dateTime || '')}
                         </span>
                       </div>
@@ -373,7 +375,7 @@ export const MeetingsView: React.FC = () => {
                         {event.attendees.map((attendee, index) => (
                           <span
                             key={index}
-                            className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
+                            className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs break-words"
                           >
                             {attendee.displayName || attendee.email}
                           </span>
