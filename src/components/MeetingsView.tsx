@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Clock, User, RefreshCw, Settings, ExternalLink, Plus, X } from 'lucide-react';
+import { Calendar, Clock, User, RefreshCw, Settings, ExternalLink, Plus, X, Mail, CheckCircle, XCircle, Users } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { buildApiUrl } from '../lib/api';
+import { useTeam } from '../hooks/useTeam';
 
 interface CalendarEvent {
   id: string;
@@ -19,10 +20,16 @@ interface CalendarEvent {
     email: string;
     displayName?: string;
   }>;
+  creator?: {
+    email: string;
+    displayName?: string;
+  };
+  createdBy?: string; // User ID who created the event
 }
 
 export const MeetingsView: React.FC = () => {
   const { user } = useAuth();
+  const { pendingInvitations, acceptInvitation, rejectInvitation, loading: teamLoading } = useTeam(user?.id || null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +44,8 @@ export const MeetingsView: React.FC = () => {
     duration: '60',
     notes: ''
   });
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [deletingEvent, setDeletingEvent] = useState<string | null>(null);
 
   // Check calendar connection status
   const checkConnection = useCallback(async () => {
@@ -44,12 +53,41 @@ export const MeetingsView: React.FC = () => {
     
     setCheckingConnection(true);
     try {
+      console.log('Checking calendar connection for user:', user.id);
+      
       const response = await fetch(buildApiUrl(`calendar/status/${user.id}`));
       const data = await response.json();
-      setIsConnected(data.connected);
-      return data.connected;
+      
+      console.log('Calendar status response:', data);
+      
+      // For team system, we need to check if user has any calendar access
+      // (either as owner or team member)
+      if (data.connected) {
+        console.log('User has direct calendar connection');
+        setIsConnected(true);
+        return true;
+      }
+      
+      // If not directly connected, check if user is a team member
+      console.log('No direct connection, checking team membership...');
+      const teamResponse = await fetch(buildApiUrl(`calendar/team/info/${user.id}`));
+      const teamData = await teamResponse.json();
+      
+      console.log('Team info response:', teamData);
+      
+      if (teamData.success && teamData.teamInfo) {
+        // User is a team member, so they have calendar access
+        console.log('User is a team member, has calendar access');
+        setIsConnected(true);
+        return true;
+      }
+      
+      console.log('No calendar access found');
+      setIsConnected(false);
+      return false;
     } catch (error) {
       console.error('Error checking calendar connection:', error);
+      setIsConnected(false);
       return false;
     } finally {
       setCheckingConnection(false);
@@ -111,6 +149,74 @@ export const MeetingsView: React.FC = () => {
     } catch (error: unknown) {
       console.error('Error getting auth URL:', error);
       setError(error instanceof Error ? error.message : 'Yetkilendirme URL\'si alınırken bir hata oluştu');
+    }
+  };
+
+  // Handle invitation acceptance
+  const handleAcceptInvitation = async (invitationId: string) => {
+    try {
+      await acceptInvitation(invitationId);
+      // Refresh connection status after accepting invitation
+      const isConnected = await checkConnection();
+      if (isConnected) {
+        await fetchEvents();
+      }
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+    }
+  };
+
+  // Handle invitation rejection
+  const handleRejectInvitation = async (invitationId: string) => {
+    try {
+      await rejectInvitation(invitationId);
+    } catch (error) {
+      console.error('Error rejecting invitation:', error);
+    }
+  };
+
+  // Check if user can modify an event
+  const canModifyEvent = (event: CalendarEvent) => {
+    if (!user?.id) return false;
+    // If event has createdBy field, check if it matches current user
+    if (event.createdBy) {
+      return event.createdBy === user.id;
+    }
+    // If no createdBy field, assume user can modify (for backward compatibility)
+    return true;
+  };
+
+  // Handle event edit
+  const handleEditEvent = (event: CalendarEvent) => {
+    if (!canModifyEvent(event)) {
+      setError('Bu etkinliği düzenleyemezsiniz. Sadece kendi oluşturduğunuz etkinlikleri düzenleyebilirsiniz.');
+      return;
+    }
+    setEditingEvent(event);
+  };
+
+  // Handle event delete
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!user?.id) return;
+    
+    setDeletingEvent(eventId);
+    try {
+      const response = await fetch(buildApiUrl(`calendar/events/${user.id}/${eventId}`), {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        await fetchEvents();
+      } else {
+        throw new Error(data.error || 'Failed to delete event');
+      }
+    } catch (error: unknown) {
+      console.error('Error deleting event:', error);
+      setError(error instanceof Error ? error.message : 'Etkinlik silinirken bir hata oluştu');
+    } finally {
+      setDeletingEvent(null);
     }
   };
 
@@ -227,7 +333,7 @@ export const MeetingsView: React.FC = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Randevular</h1>
-          <p className="text-gray-600">Takviminizi yönetmek için Google Calendar'ı bağlayın</p>
+          <p className="text-gray-600">Takviminizi yönetmek için Google Calendar'ı bağlayın veya bir takıma katılın</p>
         </div>
 
         {error && (
@@ -236,6 +342,48 @@ export const MeetingsView: React.FC = () => {
           </div>
         )}
 
+        {/* Pending Invitations */}
+        {pendingInvitations.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">Bekleyen Takım Davetleri</h2>
+            {pendingInvitations.map((invitation) => (
+              <div key={invitation.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Users className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">{invitation.users?.name || 'Unknown'}</h3>
+                      <p className="text-sm text-gray-500">{invitation.users?.email || 'Unknown'}</p>
+                      <p className="text-xs text-gray-400">
+                        Davet edildi: {new Date(invitation.created_at).toLocaleDateString('tr-TR')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleRejectInvitation(invitation.id)}
+                      className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Daveti reddet"
+                    >
+                      <XCircle className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleAcceptInvitation(invitation.id)}
+                      className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors"
+                      title="Daveti kabul et"
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Connect Calendar */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="text-center">
             <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -342,9 +490,22 @@ export const MeetingsView: React.FC = () => {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 break-words">
-                    {event.summary}
-                  </h3>
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900 break-words">
+                      {event.summary}
+                    </h3>
+                    <div className="flex items-center space-x-2 ml-4">
+                      {canModifyEvent(event) ? (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          Sizin oluşturduğunuz
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                          {event.creator?.displayName || event.creator?.email || 'Başka kullanıcı tarafından oluşturuldu'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   
                   {event.description && (
                     <p className="text-gray-600 mb-3 break-words">{event.description}</p>
@@ -382,6 +543,37 @@ export const MeetingsView: React.FC = () => {
                         ))}
                       </div>
                     </div>
+                  )}
+                </div>
+                
+                {/* Action buttons */}
+                <div className="flex items-center space-x-2 ml-4">
+                  {canModifyEvent(event) && (
+                    <>
+                      <button
+                        onClick={() => handleEditEvent(event)}
+                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Etkinliği düzenle"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm('Bu etkinliği silmek istediğinize emin misiniz?')) {
+                            handleDeleteEvent(event.id);
+                          }
+                        }}
+                        disabled={deletingEvent === event.id}
+                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        title="Etkinliği sil"
+                      >
+                        {deletingEvent === event.id ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <X className="w-4 h-4" />
+                        )}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

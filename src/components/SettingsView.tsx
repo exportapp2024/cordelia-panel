@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, Mail, Shield, LogOut } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
+import { TeamManagementSection } from './TeamManagementSection';
 
 export const SettingsView: React.FC = () => {
   const { user, updateProfile, signOut } = useAuth();
@@ -180,6 +181,9 @@ export const SettingsView: React.FC = () => {
       </div>
 
 
+
+      {/* Team & Calendar */}
+      <TeamManagementSection />
 
       {/* Security */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

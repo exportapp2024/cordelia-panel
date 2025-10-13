@@ -38,7 +38,6 @@ function App() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cordelia yükleniyor...</p>
-          <p className="text-xs text-gray-400 mt-2">Bu çok uzun sürerse, konsol hatalarını kontrol edin</p>
         </div>
       </div>
     );

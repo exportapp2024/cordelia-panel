@@ -11,6 +11,7 @@ export const ChatWidget: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const [messages, setMessages] = React.useState<Array<{ id?: string; role: 'user'|'assistant'; content: string; created_at?: string }>>([]);
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
 
   const renderMarkdownHtml = React.useCallback((raw: string): string => {
     const escapeHtml = (s: string) => s
@@ -33,6 +34,28 @@ export const ChatWidget: React.FC = () => {
   }, []);
 
   const onToggle = () => setOpen((v) => !v);
+
+  const adjustTextareaHeight = React.useCallback(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      const lineHeight = 24; // Approximate line height in pixels
+      const maxHeight = lineHeight * 4; // Maximum 4 lines
+      
+      if (scrollHeight <= maxHeight) {
+        textareaRef.current.style.height = `${scrollHeight}px`;
+        textareaRef.current.style.overflowY = 'hidden';
+      } else {
+        textareaRef.current.style.height = `${maxHeight}px`;
+        textareaRef.current.style.overflowY = 'auto';
+      }
+    }
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    adjustTextareaHeight();
+  };
 
   const loadHistory = React.useCallback(async () => {
     if (!user || !threadId) return;
@@ -65,6 +88,11 @@ export const ChatWidget: React.FC = () => {
     if (!user || !input.trim()) return;
     const text = input.trim();
     setInput('');
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.overflowY = 'hidden';
+    }
     setMessages((prev) => [...prev, { role: 'user', content: text }]);
     setLoading(true);
     try {
@@ -133,14 +161,21 @@ export const ChatWidget: React.FC = () => {
           </div>
 
           <div className="border-t border-gray-200 p-2">
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
+            <div className="flex items-end space-x-2">
+              <textarea
+                ref={textareaRef}
                 placeholder="Mesaj yazın..."
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') sendMessage(); }}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                onChange={handleInputChange}
+                onKeyDown={(e) => { 
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none min-h-[40px] max-h-[96px]"
+                rows={1}
+                style={{ height: '40px' }}
               />
               <button
                 onClick={sendMessage}
