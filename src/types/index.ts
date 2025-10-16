@@ -13,4 +13,7 @@ export interface Meeting {
   status: 'upcoming' | 'completed' | 'cancelled';
 }
 
-export type ViewType = 'meetings' | 'patients' | 'settings';
+export type ViewType = 'meetings' | 'patients' | 'settings' | 'patient-file';
+
+// Re-export medical file types
+export * from './medicalFile';

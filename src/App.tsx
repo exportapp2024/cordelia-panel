@@ -5,6 +5,7 @@ import { AuthForm } from './components/AuthForm';
 import { Dashboard } from './components/Dashboard';
 import { EmailVerificationView } from './components/EmailVerificationView';
 import { CalendarSuccessView } from './components/CalendarSuccessView';
+import PatientMedicalFileView from './components/PatientMedicalFileView';
 import { useAuth } from './hooks/useAuth';
 import { ChatWidget } from './components/ChatWidget';
 import { supabase } from './lib/supabase';
@@ -97,6 +98,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/calendar" element={<CalendarSuccessRoute />} />
+        <Route path="/patient-file/:patientId" element={<PatientMedicalFileView />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <ChatWidget />

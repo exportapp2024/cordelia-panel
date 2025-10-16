@@ -31,3 +31,22 @@ export async function fetchChatHistory(params: { userId: string; threadId: strin
   if (!res.ok) throw new Error('Fetch history failed');
   return res.json() as Promise<{ messages: Array<{ id: string; role: 'user'|'assistant'|'system'|'tool'; content: string; created_at: string }> }>;
 }
+
+// Medical file API functions
+export async function fetchMedicalFile(userId: string, patientId: string) {
+  const url = buildApiUrl(`/users/${userId}/patients/${patientId}/medical-file`);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch medical file');
+  return res.json() as Promise<{ medicalFile: any }>;
+}
+
+export async function updateMedicalFile(userId: string, patientId: string, medicalData: any) {
+  const url = buildApiUrl(`/users/${userId}/patients/${patientId}/medical-file`);
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(medicalData)
+  });
+  if (!res.ok) throw new Error('Failed to update medical file');
+  return res.json() as Promise<{ medicalFile: any }>;
+}

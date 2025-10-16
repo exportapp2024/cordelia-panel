@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Plus, User, Calendar, FileEdit, Phone, Loader2, AlertCircle, RefreshCw, MoreHorizontal, Edit3, Trash2 } from 'lucide-react';
+import { User, Calendar, FileEdit, Phone, Loader2, AlertCircle, RefreshCw, MoreHorizontal, Edit3, Trash2, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { usePatients } from '../hooks/usePatients';
 import { useAuth } from '../hooks/useAuth';
 
@@ -178,6 +179,7 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
 };
 
 export const PatientsView: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { patients, loading, error, addPatient, updateNotes, updatePatient, deletePatient, refetch } = usePatients(user?.id || null);
   const [editingPatient, setEditingPatient] = useState<{ id: string; current: string } | null>(null);
@@ -274,7 +276,9 @@ export const PatientsView: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adres</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Başvuru Nedeni</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notlar</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hasta Dosyası</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturulma</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -302,6 +306,16 @@ export const PatientsView: React.FC = () => {
                             aria-label="Notu Gör/Düzenle"
                           >
                             <FileEdit className="w-4 h-4" />
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => navigate(`/patient-file/${patient.id}`)}
+                            className="inline-flex items-center p-2 rounded-md border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
+                            title="Hasta Dosyası"
+                            aria-label="Hasta Dosyası"
+                          >
+                            <FileText className="w-4 h-4" />
                           </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -466,15 +480,24 @@ export const PatientsView: React.FC = () => {
                         <span className="text-gray-900 break-words">{patient.data.notes}</span>
                       </div>
                     )}
-                    <div className="pt-2">
+                    <div className="pt-3 flex flex-col sm:flex-row gap-2">
                       <button
                         onClick={() => { setEditingPatient({ id: patient.id, current: patient.data.notes || '' }); setNotesDraft(patient.data.notes || ''); }}
-                        className="inline-flex items-center px-3 py-1 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 text-sm"
+                        className="inline-flex items-center justify-center px-3 py-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 text-sm transition-colors"
                         title="Notu Gör/Düzenle"
                         aria-label="Notu Gör/Düzenle"
                       >
-                        <FileEdit className="w-4 h-4 mr-1" />
+                        <FileEdit className="w-4 h-4 mr-2" />
                         Notları Düzenle
+                      </button>
+                      <button
+                        onClick={() => navigate(`/patient-file/${patient.id}`)}
+                        className="inline-flex items-center justify-center px-3 py-2 rounded-md border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 text-sm font-medium transition-colors"
+                        title="Hasta Dosyası"
+                        aria-label="Hasta Dosyası"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Hasta Dosyası
                       </button>
                     </div>
                   </div>
