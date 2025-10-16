@@ -61,6 +61,7 @@ const PatientMedicalFileView: React.FC = () => {
         if (medicalFile.data) {
           updatedMedicalFile.patientInfo = {
             ...updatedMedicalFile.patientInfo,
+            patientNumber: medicalFile.patient_number ? medicalFile.patient_number.toString() : '',
             fullName: medicalFile.data.name || '',
             nationalId: medicalFile.data.national_id || '',
             phoneNumber: medicalFile.data.phone || '',
@@ -437,6 +438,13 @@ const PatientMedicalFileView: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 p-6">
               <div className="text-center">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Hasta Dosyası</h1>
+                {patientData?.patient_number && (
+                  <div className="mb-3">
+                    <span className="inline-block text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+                      Hasta No: {patientData.patient_number}
+                    </span>
+                  </div>
+                )}
                 {patientData?.data?.name && (
                   <div className="space-y-1">
                     <p className="text-lg font-semibold text-emerald-700">{patientData.data.name}</p>

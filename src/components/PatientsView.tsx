@@ -270,6 +270,7 @@ export const PatientsView: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hasta No</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad Soyad</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TC / Pasaport No</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
@@ -284,6 +285,11 @@ export const PatientsView: React.FC = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {patients.map((patient) => (
                       <tr key={patient.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-4 whitespace-nowrap">
+                          <div className="text-sm font-bold text-emerald-600 text-center">
+                            {patient.patient_number || '—'}
+                          </div>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
@@ -392,6 +398,11 @@ export const PatientsView: React.FC = () => {
                         <User className="w-5 h-5 text-emerald-600" />
                       </div>
                       <div>
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+                            {patient.patient_number || '—'}
+                          </span>
+                        </div>
                         <h3 className="text-lg font-medium text-gray-900">{patient.data.name || '—'}</h3>
                         <p className="text-sm text-gray-500 flex items-center">
                           <Calendar className="w-4 h-4 mr-1" />
