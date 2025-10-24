@@ -7,7 +7,7 @@ import { EmailVerificationView } from './components/EmailVerificationView';
 import { CalendarSuccessView } from './components/CalendarSuccessView';
 import PatientMedicalFileView from './components/PatientMedicalFileView';
 import { useAuth } from './hooks/useAuth';
-import { ChatWidget } from './components/ChatWidget';
+import { EnhancedChatWidget } from './components/EnhancedChatWidget';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -101,7 +101,7 @@ function App() {
         <Route path="/patient-file/:patientId" element={<PatientMedicalFileView />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <ChatWidget />
+      <EnhancedChatWidget />
     </BrowserRouter>
   );
 }

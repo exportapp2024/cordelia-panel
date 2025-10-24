@@ -13,6 +13,30 @@ export const buildApiUrl = (endpoint: string): string => {
 export interface ChatMessageResponse {
   thread_id: string;
   message: string;
+  documentData?: {
+    documentType: string;
+    patientId: string;
+    patientName: string;
+    language: 'tr' | 'en';
+    patientData: {
+      patient_number?: number;
+      data?: {
+        name?: string;
+        national_id?: string;
+        phone?: string;
+        address?: string;
+      };
+      medical_file?: {
+        patientInfo?: Record<string, string>;
+        admissionReason?: string;
+        generalHealthHistory?: Record<string, string>;
+        preoperativeEvaluation?: Record<string, string>;
+        procedureInfo?: Record<string, string>;
+        followUpNotes?: string;
+        dischargeRecommendations?: Record<string, string>;
+      };
+    };
+  };
 }
 
 export async function sendChatMessage(params: { userId: string; threadId?: string; message: string }): Promise<ChatMessageResponse> {
@@ -37,10 +61,35 @@ export async function fetchMedicalFile(userId: string, patientId: string) {
   const url = buildApiUrl(`/users/${userId}/patients/${patientId}/medical-file`);
   const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch medical file');
-  return res.json() as Promise<{ medicalFile: any }>;
+  return res.json() as Promise<{ medicalFile: {
+    patient_number?: number;
+    data?: {
+      name?: string;
+      national_id?: string;
+      phone?: string;
+      address?: string;
+    };
+    medical_file?: {
+      patientInfo?: Record<string, string>;
+      admissionReason?: string;
+      generalHealthHistory?: Record<string, string>;
+      preoperativeEvaluation?: Record<string, string>;
+      procedureInfo?: Record<string, string>;
+      followUpNotes?: string;
+      dischargeRecommendations?: Record<string, string>;
+    };
+  } }>;
 }
 
-export async function updateMedicalFile(userId: string, patientId: string, medicalData: any) {
+export async function updateMedicalFile(userId: string, patientId: string, medicalData: {
+  patientInfo?: Record<string, string>;
+  admissionReason?: string;
+  generalHealthHistory?: Record<string, string>;
+  preoperativeEvaluation?: Record<string, string>;
+  procedureInfo?: Record<string, string>;
+  followUpNotes?: string;
+  dischargeRecommendations?: Record<string, string>;
+}) {
   const url = buildApiUrl(`/users/${userId}/patients/${patientId}/medical-file`);
   const res = await fetch(url, {
     method: 'PUT',
@@ -48,5 +97,5 @@ export async function updateMedicalFile(userId: string, patientId: string, medic
     body: JSON.stringify(medicalData)
   });
   if (!res.ok) throw new Error('Failed to update medical file');
-  return res.json() as Promise<{ medicalFile: any }>;
+  return res.json();
 }

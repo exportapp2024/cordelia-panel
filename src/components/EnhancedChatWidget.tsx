@@ -1,9 +1,19 @@
 import React from 'react';
-import { MessageCircle, X, Send } from 'lucide-react';
+import { MessageCircle, X, Send, Download } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { sendChatMessage, fetchChatHistory } from '../lib/api';
+import { MedicalFileData } from '../types/medicalFile';
+import { generateEpicrisisDocument, generateFitToFlightDocument, generateRestReportDocument } from '../utils/documentGenerator';
 
-export const ChatWidget: React.FC = () => {
+interface EnhancedChatWidgetProps {
+  medicalFileData?: MedicalFileData;
+  patientData?: Record<string, unknown>;
+  patientId?: string;
+}
+
+export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
+  medicalFileData
+}) => {
   const { user } = useAuth();
   const [open, setOpen] = React.useState(false);
   const [threadId, setThreadId] = React.useState<string | undefined>(undefined);
@@ -95,11 +105,33 @@ export const ChatWidget: React.FC = () => {
     }
     setMessages((prev) => [...prev, { role: 'user', content: text }]);
     setLoading(true);
+    
     try {
       const res = await sendChatMessage({ userId: user.id, threadId, message: text });
       if (!threadId) setThreadId(res.thread_id);
-      setMessages((prev) => [...prev, { role: 'assistant', content: res.message }]);
-    } catch {
+      
+      let displayMessage = res.message;
+      
+      // Handle document generation
+      if (res.documentData) {
+        const { documentType, patientData, language, patientName } = res.documentData;
+        
+        // Store document info for download button
+        const docInfo = {
+          documentType,
+          language,
+          patientData,
+          patientName,
+          timestamp: Date.now()
+        };
+        
+        // Embed in message for download button
+        displayMessage += `\n\n[DOCUMENT:${JSON.stringify(docInfo)}]`;
+      }
+      
+      setMessages((prev) => [...prev, { role: 'assistant', content: displayMessage }]);
+    } catch (error) {
+      console.error('Chat error:', error);
       setMessages((prev) => [...prev, { role: 'assistant', content: 'Üzgünüm, bir hata oluştu.' }]);
     } finally {
       setLoading(false);
@@ -125,7 +157,9 @@ export const ChatWidget: React.FC = () => {
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Cordelia AI</h3>
-              <p className="text-xs text-gray-500 hidden md:block">Randevu ve hasta işlemleri için yazın</p>
+              <p className="text-xs text-gray-500 hidden md:block">
+                {medicalFileData ? 'Belge oluşturma ve hasta işlemleri için yazın' : 'Randevu ve hasta işlemleri için yazın'}
+              </p>
             </div>
             <button
               onClick={onToggle}
@@ -138,18 +172,90 @@ export const ChatWidget: React.FC = () => {
           <div className="p-3 space-y-3 overflow-auto flex-1">
             {messages.length === 0 && (
               <div className="text-center text-xs text-gray-500 py-10">
-                Merhaba! Bugün nasıl yardımcı olabilirim?
+                {medicalFileData ? (
+                  <div>
+                    <p>Merhaba! Bugün nasıl yardımcı olabilirim?</p>
+                    <p className="mt-2 text-emerald-600">
+                      💡 "Epicrisis belgesi oluştur", "Uçuşa uygunluk belgesi hazırla" veya "İstirahat raporu çıkar" yazabilirsiniz.
+                    </p>
+                  </div>
+                ) : (
+                  'Merhaba! Bugün nasıl yardımcı olabilirim?'
+                )}
               </div>
             )}
-            {messages.map((m, idx) => (
-              <div key={m.id || idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div 
-                  className={`${m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-800'} px-3 py-2 rounded-lg max-w-[80%] text-sm break-normal hyphens-auto`}
-                  dangerouslySetInnerHTML={{ __html: renderMarkdownHtml(m.content) }}
-                >
+            {messages.map((m, idx) => {
+              // Check for document download in message
+              const docMatch = m.content.match(/\[DOCUMENT:([\s\S]*?)\]/);
+              const hasDocument = docMatch !== null;
+              let messageContent = m.content;
+              let documentInfo = null;
+              
+              if (hasDocument && docMatch) {
+                try {
+                  documentInfo = JSON.parse(docMatch[1]);
+                  messageContent = m.content.replace(/\[DOCUMENT:[\s\S]*?\]/, '').trim();
+                } catch (e) {
+                  console.error('Failed to parse document info:', e);
+                }
+              }
+              
+              return (
+                <div key={m.id || idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`${m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-800'} px-3 py-2 rounded-lg max-w-[80%] text-sm break-normal hyphens-auto`}>
+                    <div dangerouslySetInnerHTML={{ __html: renderMarkdownHtml(messageContent) }} />
+                    {hasDocument && documentInfo && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            // Use EXACT same functions as manual document creation
+                            const { documentType, language, patientData } = documentInfo;
+                            
+                            if (!patientData || !patientData.medical_file) {
+                              alert('Belge oluşturmak için gerekli tıbbi veriler bulunamadı.');
+                              return;
+                            }
+                            
+                            let pdfResult;
+                            const medicalData = patientData.medical_file;
+                            
+                            if (documentType === 'epicrisis') {
+                              pdfResult = await generateEpicrisisDocument(medicalData, patientData, language);
+                            } else if (documentType === 'fit_to_flight') {
+                              pdfResult = await generateFitToFlightDocument(medicalData, patientData, language);
+                            } else if (documentType === 'rest_report') {
+                              pdfResult = await generateRestReportDocument(medicalData, patientData, language);
+                            } else {
+                              alert('Bilinmeyen belge türü.');
+                              return;
+                            }
+                            
+                            if (pdfResult) {
+                              const link = document.createElement('a');
+                              link.href = pdfResult.url;
+                              link.download = pdfResult.filename;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              URL.revokeObjectURL(pdfResult.url);
+                            } else {
+                              alert('Belge oluşturulamadı.');
+                            }
+                          } catch (error) {
+                            console.error('Document generation error:', error);
+                            alert('Belge oluşturulurken hata oluştu: ' + (error as Error).message);
+                          }
+                        }}
+                        className="mt-2 inline-flex items-center px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Belgeyi İndir
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {loading && (
               <div className="flex items-center space-x-1 text-gray-400 pl-1">
                 <span className="inline-block h-2 w-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
@@ -164,7 +270,7 @@ export const ChatWidget: React.FC = () => {
             <div className="flex items-end space-x-2">
               <textarea
                 ref={textareaRef}
-                placeholder="Mesaj yazın..."
+                placeholder={medicalFileData ? "Belge oluşturmak için yazın..." : "Mesaj yazın..."}
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={(e) => { 
@@ -192,6 +298,3 @@ export const ChatWidget: React.FC = () => {
     </>
   );
 };
-
-
-

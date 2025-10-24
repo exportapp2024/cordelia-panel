@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   User, 
@@ -11,7 +11,8 @@ import {
   ArrowLeft, 
   Save, 
   Loader2,
-  AlertCircle 
+  AlertCircle,
+  Download
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { fetchMedicalFile, updateMedicalFile } from '../lib/api';
@@ -21,6 +22,8 @@ import {
   MEDICAL_FILE_TABS, 
   createEmptyMedicalFile 
 } from '../types/medicalFile';
+import DocumentGenerationModal from './DocumentGenerationModal';
+import { EnhancedChatWidget } from './EnhancedChatWidget';
 
 const PatientMedicalFileView: React.FC = () => {
   const { patientId } = useParams<{ patientId: string }>();
@@ -28,7 +31,16 @@ const PatientMedicalFileView: React.FC = () => {
   const { user } = useAuth();
   
   const [medicalFileData, setMedicalFileData] = useState<MedicalFileData>(createEmptyMedicalFile());
-  const [patientData, setPatientData] = useState<any>(null);
+  const [patientData, setPatientData] = useState<{
+    patient_number?: number;
+    data?: {
+      name?: string;
+      national_id?: string;
+      phone?: string;
+      address?: string;
+    };
+    medical_file?: MedicalFileData;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState('patientInfo');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -36,14 +48,9 @@ const PatientMedicalFileView: React.FC = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showExitWarning, setShowExitWarning] = useState(false);
   const [originalData, setOriginalData] = useState<MedicalFileData>(createEmptyMedicalFile());
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
 
-  useEffect(() => {
-    if (patientId && user?.id) {
-      loadMedicalFile();
-    }
-  }, [patientId, user?.id]);
-
-  const loadMedicalFile = async () => {
+  const loadMedicalFile = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -82,7 +89,13 @@ const PatientMedicalFileView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, patientId]);
+
+  useEffect(() => {
+    if (patientId && user?.id) {
+      loadMedicalFile();
+    }
+  }, [patientId, user?.id, loadMedicalFile]);
 
   // Check for unsaved changes
   useEffect(() => {
@@ -91,13 +104,19 @@ const PatientMedicalFileView: React.FC = () => {
   }, [medicalFileData, originalData]);
 
   const handleFieldChange = (section: keyof MedicalFileData, field: string, value: string) => {
-    setMedicalFileData(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value
+    setMedicalFileData(prev => {
+      const currentSection = prev[section];
+      if (typeof currentSection === 'object' && currentSection !== null) {
+        return {
+          ...prev,
+          [section]: {
+            ...currentSection,
+            [field]: value
+          }
+        };
       }
-    }));
+      return prev;
+    });
   };
 
   const handleSave = async () => {
@@ -395,27 +414,38 @@ const PatientMedicalFileView: React.FC = () => {
               </div>
             </div>
             
-            <button
-              onClick={handleSave}
-              disabled={saving || !hasUnsavedChanges}
-              className={`inline-flex items-center px-5 py-3 rounded-lg transition-colors shadow-sm ${
-                hasUnsavedChanges
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Kaydediliyor...
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5 mr-2" />
-                  {hasUnsavedChanges ? 'Kaydet' : 'Kaydedildi'}
-                </>
-              )}
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setShowDocumentModal(true)}
+                className="inline-flex items-center px-4 py-3 rounded-lg border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+              >
+                <Download className="w-5 h-5 mr-2" />
+                <span className="hidden sm:inline">Belge Oluştur</span>
+                <span className="sm:hidden">Belge</span>
+              </button>
+              
+              <button
+                onClick={handleSave}
+                disabled={saving || !hasUnsavedChanges}
+                className={`inline-flex items-center px-5 py-3 rounded-lg transition-colors shadow-sm ${
+                  hasUnsavedChanges
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Kaydediliyor...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5 mr-2" />
+                    {hasUnsavedChanges ? 'Kaydet' : 'Kaydedildi'}
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -466,8 +496,8 @@ const PatientMedicalFileView: React.FC = () => {
               
               {/* Mobile: Horizontal scroll */}
               <div className="lg:hidden">
-                <nav className="flex overflow-x-auto p-2 space-x-2">
-                  {MEDICAL_FILE_TABS.map((tab, index) => (
+              <nav className="flex overflow-x-auto p-2 space-x-2">
+                {MEDICAL_FILE_TABS.map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
@@ -492,7 +522,7 @@ const PatientMedicalFileView: React.FC = () => {
 
               {/* Desktop: Vertical list */}
               <nav className="hidden lg:block p-2">
-                {MEDICAL_FILE_TABS.map((tab, index) => (
+                {MEDICAL_FILE_TABS.map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
@@ -574,6 +604,21 @@ const PatientMedicalFileView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Document Generation Modal */}
+      <DocumentGenerationModal
+        isOpen={showDocumentModal}
+        onClose={() => setShowDocumentModal(false)}
+        medicalFileData={medicalFileData}
+        patientData={patientData}
+      />
+
+      {/* Enhanced Chat Widget with Document Generation */}
+      <EnhancedChatWidget
+        medicalFileData={medicalFileData}
+        patientData={patientData}
+        patientId={patientId}
+      />
     </div>
   );
 };
