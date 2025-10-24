@@ -5,11 +5,16 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    include: ['lucide-react'],
+    include: ['lucide-react', 'pdfmake/build/pdfmake', 'pdfmake/build/vfs_fonts'],
   },
   build: {
     rollupOptions: {
       external: [],
+      output: {
+        manualChunks: {
+          pdfmake: ['pdfmake/build/pdfmake', 'pdfmake/build/vfs_fonts']
+        }
+      }
     },
   },
   server: {

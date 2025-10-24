@@ -1,10 +1,11 @@
-import * as pdfMake from 'pdfmake/build/pdfmake';
-import * as pdfFonts from 'pdfmake/build/vfs_fonts';
+import pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
 import { MedicalFileData } from '../types/medicalFile';
 
-// Configure pdfmake with fonts
-const pdfMakeInstance = pdfMake as any;
-pdfMakeInstance.vfs = pdfFonts;
+// Configure pdfmake with fonts - production-safe approach
+if (typeof pdfMake.vfs === 'undefined') {
+  (pdfMake as any).vfs = pdfFonts;
+}
 
 // Helper function to format date
 const formatDate = (dateString: string): string => {
@@ -402,7 +403,7 @@ export const generateEpicrisisDocument = async (
     }
   };
 
-  const pdfDocGenerator = pdfMakeInstance.createPdf(docDefinition);
+  const pdfDocGenerator = pdfMake.createPdf(docDefinition);
   const pdfBlob = await new Promise<Blob>((resolve) => {
     pdfDocGenerator.getBlob((blob: Blob) => {
       resolve(blob);
@@ -499,7 +500,7 @@ export const generateFitToFlightDocument = async (
     }
   };
 
-  const pdfDocGenerator = pdfMakeInstance.createPdf(docDefinition);
+  const pdfDocGenerator = pdfMake.createPdf(docDefinition);
   const pdfBlob = await new Promise<Blob>((resolve) => {
     pdfDocGenerator.getBlob((blob: Blob) => {
       resolve(blob);
@@ -599,7 +600,7 @@ export const generateRestReportDocument = async (
     }
   };
 
-  const pdfDocGenerator = pdfMakeInstance.createPdf(docDefinition);
+  const pdfDocGenerator = pdfMake.createPdf(docDefinition);
   const pdfBlob = await new Promise<Blob>((resolve) => {
     pdfDocGenerator.getBlob((blob: Blob) => {
       resolve(blob);
