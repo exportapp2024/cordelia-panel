@@ -3,6 +3,7 @@ import { User, Calendar, FileEdit, Phone, Loader2, AlertCircle, RefreshCw, MoreH
 import { useNavigate } from 'react-router-dom';
 import { usePatients } from '../hooks/usePatients';
 import { useAuth } from '../hooks/useAuth';
+import { Patient } from '../types';
 
 interface AddPatientModalProps {
   isOpen: boolean;
@@ -197,6 +198,11 @@ export const PatientsView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
+  // Helper function to check if current user can edit a patient
+  const canEditPatient = (patient: Patient) => {
+    return patient.created_by_user_id === user?.id;
+  };
+
   const handleAddPatient = async (patientData: {
     name: string;
     national_id?: string | null;
@@ -276,6 +282,7 @@ export const PatientsView: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adres</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Başvuru Nedeni</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kayıt Sahibi</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notlar</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hasta Dosyası</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturulma</th>
@@ -305,11 +312,19 @@ export const PatientsView: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.address || '—'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.reason || '—'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {canEditPatient(patient) ? (
+                            <span className="text-emerald-600 font-medium">(Siz)</span>
+                          ) : (
+                            <span className="text-gray-600">{patient.created_by_name || 'Bilinmiyor'}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <button
                             onClick={() => { setEditingPatient({ id: patient.id, current: patient.data.notes || '' }); setNotesDraft(patient.data.notes || ''); }}
-                            className="inline-flex items-center p-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
-                            title="Notu Gör/Düzenle"
+                            className="inline-flex items-center p-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={canEditPatient(patient) ? "Notu Gör/Düzenle" : "Bu kaydı sadece oluşturan kişi düzenleyebilir"}
                             aria-label="Notu Gör/Düzenle"
+                            disabled={!canEditPatient(patient)}
                           >
                             <FileEdit className="w-4 h-4" />
                           </button>
@@ -349,6 +364,11 @@ export const PatientsView: React.FC = () => {
                                   <div className="py-1 flex flex-col">
                                     <button
                                       onClick={() => {
+                                        if (!canEditPatient(patient)) {
+                                          alert('Bu hasta kaydını sadece oluşturan kişi düzenleyebilir');
+                                          setOpenMenuId(null);
+                                          return;
+                                        }
                                         setEditFull({
                                           id: patient.id,
                                           name: patient.data.name || '',
@@ -360,18 +380,33 @@ export const PatientsView: React.FC = () => {
                                         });
                                         setOpenMenuId(null);
                                       }}
-                                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                                      className={`w-full px-4 py-2 text-left text-sm flex items-center ${
+                                        canEditPatient(patient) 
+                                          ? 'text-gray-700 hover:bg-gray-50' 
+                                          : 'text-gray-400 cursor-not-allowed'
+                                      }`}
+                                      disabled={!canEditPatient(patient)}
                                     >
                                       <Edit3 className="w-4 h-4 mr-2" /> Düzenle
                                     </button>
                                     <button
                                       onClick={async () => {
+                                        if (!canEditPatient(patient)) {
+                                          alert('Bu hasta kaydını sadece oluşturan kişi silebilir');
+                                          setOpenMenuId(null);
+                                          return;
+                                        }
                                         setOpenMenuId(null);
                                         if (confirm('Bu hastayı silmek istediğinize emin misiniz?')) {
                                           await deletePatient(patient.id);
                                         }
                                       }}
-                                      className="w-full px-4 py-2 text-left text-sm text-red-700 hover:bg-gray-50 flex items-center"
+                                      className={`w-full px-4 py-2 text-left text-sm flex items-center ${
+                                        canEditPatient(patient) 
+                                          ? 'text-red-700 hover:bg-gray-50' 
+                                          : 'text-gray-400 cursor-not-allowed'
+                                      }`}
+                                      disabled={!canEditPatient(patient)}
                                     >
                                       <Trash2 className="w-4 h-4 mr-2" /> Sil
                                     </button>
@@ -427,6 +462,11 @@ export const PatientsView: React.FC = () => {
                             <div className="py-1 flex flex-col">
                               <button
                                 onClick={() => {
+                                  if (!canEditPatient(patient)) {
+                                    alert('Bu hasta kaydını sadece oluşturan kişi düzenleyebilir');
+                                    setOpenMenuId(null);
+                                    return;
+                                  }
                                   setEditFull({
                                     id: patient.id,
                                     name: patient.data.name || '',
@@ -438,18 +478,33 @@ export const PatientsView: React.FC = () => {
                                   });
                                   setOpenMenuId(null);
                                 }}
-                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                                className={`w-full px-4 py-2 text-left text-sm flex items-center ${
+                                  canEditPatient(patient) 
+                                    ? 'text-gray-700 hover:bg-gray-50' 
+                                    : 'text-gray-400 cursor-not-allowed'
+                                }`}
+                                disabled={!canEditPatient(patient)}
                               >
                                 <Edit3 className="w-4 h-4 mr-2" /> Düzenle
                               </button>
                               <button
                                 onClick={async () => {
+                                  if (!canEditPatient(patient)) {
+                                    alert('Bu hasta kaydını sadece oluşturan kişi silebilir');
+                                    setOpenMenuId(null);
+                                    return;
+                                  }
                                   setOpenMenuId(null);
                                   if (confirm('Bu hastayı silmek istediğinize emin misiniz?')) {
                                     await deletePatient(patient.id);
                                   }
                                 }}
-                                className="w-full px-4 py-2 text-left text-sm text-red-700 hover:bg-gray-50 flex items-center"
+                                className={`w-full px-4 py-2 text-left text-sm flex items-center ${
+                                  canEditPatient(patient) 
+                                    ? 'text-red-700 hover:bg-gray-50' 
+                                    : 'text-gray-400 cursor-not-allowed'
+                                }`}
+                                disabled={!canEditPatient(patient)}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" /> Sil
                               </button>
@@ -461,6 +516,14 @@ export const PatientsView: React.FC = () => {
                   </div>
                   
                   <div className="space-y-2 text-sm">
+                    <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
+                      <span className="font-medium text-gray-700">Kayıt Sahibi:</span>
+                      {canEditPatient(patient) ? (
+                        <span className="text-emerald-600 font-medium">(Siz)</span>
+                      ) : (
+                        <span className="text-gray-600">{patient.created_by_name || 'Bilinmiyor'}</span>
+                      )}
+                    </div>
                     {patient.data.national_id && (
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-gray-700">TC / Pasaport:</span>
@@ -494,9 +557,10 @@ export const PatientsView: React.FC = () => {
                     <div className="pt-3 flex flex-col sm:flex-row gap-2">
                       <button
                         onClick={() => { setEditingPatient({ id: patient.id, current: patient.data.notes || '' }); setNotesDraft(patient.data.notes || ''); }}
-                        className="inline-flex items-center justify-center px-3 py-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 text-sm transition-colors"
-                        title="Notu Gör/Düzenle"
+                        className="inline-flex items-center justify-center px-3 py-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={canEditPatient(patient) ? "Notu Gör/Düzenle" : "Bu kaydı sadece oluşturan kişi düzenleyebilir"}
                         aria-label="Notu Gör/Düzenle"
+                        disabled={!canEditPatient(patient)}
                       >
                         <FileEdit className="w-4 h-4 mr-2" />
                         Notları Düzenle

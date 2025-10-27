@@ -33,6 +33,8 @@ const PatientMedicalFileView: React.FC = () => {
   const [medicalFileData, setMedicalFileData] = useState<MedicalFileData>(createEmptyMedicalFile());
   const [patientData, setPatientData] = useState<{
     patient_number?: number;
+    created_by_user_id?: string;
+    created_by_name?: string | null;
     data?: {
       name?: string;
       national_id?: string;
@@ -49,6 +51,7 @@ const PatientMedicalFileView: React.FC = () => {
   const [showExitWarning, setShowExitWarning] = useState(false);
   const [originalData, setOriginalData] = useState<MedicalFileData>(createEmptyMedicalFile());
   const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   const loadMedicalFile = useCallback(async () => {
     try {
@@ -59,10 +62,20 @@ const PatientMedicalFileView: React.FC = () => {
       // Merge patient data with medical file data
       const { medicalFile } = response;
       if (medicalFile) {
-        setPatientData(medicalFile);
+        setPatientData({
+          patient_number: medicalFile.patient_number,
+          created_by_user_id: medicalFile.created_by_user_id,
+          created_by_name: medicalFile.created_by_name,
+          data: medicalFile.data,
+          medical_file: medicalFile.medical_file as unknown as MedicalFileData
+        });
+        
+        // Check if current user is the creator
+        const canEdit = medicalFile.created_by_user_id === user!.id;
+        setIsReadOnly(!canEdit);
         
         // Auto-populate common fields from patient.data
-        const updatedMedicalFile = { ...medicalFile.medical_file || createEmptyMedicalFile() };
+        const updatedMedicalFile = { ...medicalFile.medical_file || createEmptyMedicalFile() } as MedicalFileData;
         
         // Auto-populate from patient.data if available
         if (medicalFile.data) {
@@ -76,8 +89,8 @@ const PatientMedicalFileView: React.FC = () => {
           };
         }
         
-        setMedicalFileData(updatedMedicalFile);
-        setOriginalData(updatedMedicalFile);
+        setMedicalFileData(updatedMedicalFile as MedicalFileData);
+        setOriginalData(updatedMedicalFile as MedicalFileData);
       } else {
         const emptyData = createEmptyMedicalFile();
         setMedicalFileData(emptyData);
@@ -120,16 +133,21 @@ const PatientMedicalFileView: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!user?.id || !patientId) return;
+    if (!user?.id || !patientId || isReadOnly) return;
     
     try {
       setSaving(true);
-      await updateMedicalFile(user.id, patientId, medicalFileData);
+      await updateMedicalFile(user.id, patientId, medicalFileData as unknown as Record<string, unknown>);
       setOriginalData(medicalFileData); // Update original data after successful save
       setHasUnsavedChanges(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error saving medical file:', err);
-      setError('Hasta dosyası kaydedilirken hata oluştu');
+      const errorMessage = err instanceof Error ? err.message : 'Hasta dosyası kaydedilirken hata oluştu';
+      if (errorMessage.includes('sadece oluşturan kişi')) {
+        setError('Bu hasta kaydını sadece oluşturan kişi düzenleyebilir');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setSaving(false);
     }
@@ -182,7 +200,8 @@ const PatientMedicalFileView: React.FC = () => {
                     type="text"
                     value={medicalFileData.patientInfo[field.key as keyof typeof medicalFileData.patientInfo] || ''}
                     onChange={(e) => handleFieldChange('patientInfo', field.key, e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={isReadOnly}
                   />
                 </div>
               ))}
@@ -207,8 +226,9 @@ const PatientMedicalFileView: React.FC = () => {
               <textarea
                 value={medicalFileData.admissionReason}
                 onChange={(e) => setMedicalFileData(prev => ({ ...prev, admissionReason: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
                 rows={16}
+                disabled={isReadOnly}
               />
             </div>
           </div>
@@ -234,7 +254,8 @@ const PatientMedicalFileView: React.FC = () => {
                     type="text"
                     value={medicalFileData.generalHealthHistory[field.key as keyof typeof medicalFileData.generalHealthHistory] || ''}
                     onChange={(e) => handleFieldChange('generalHealthHistory', field.key, e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={isReadOnly}
                   />
                 </div>
               ))}
@@ -262,7 +283,8 @@ const PatientMedicalFileView: React.FC = () => {
                     type="text"
                     value={medicalFileData.preoperativeEvaluation[field.key as keyof typeof medicalFileData.preoperativeEvaluation] || ''}
                     onChange={(e) => handleFieldChange('preoperativeEvaluation', field.key, e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={isReadOnly}
                   />
                 </div>
               ))}
@@ -291,7 +313,8 @@ const PatientMedicalFileView: React.FC = () => {
                       type="text"
                       value={medicalFileData.procedureInfo[field.key as keyof typeof medicalFileData.procedureInfo] || ''}
                       onChange={(e) => handleFieldChange('procedureInfo', field.key, e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      disabled={isReadOnly}
                     />
                   </div>
                 ))}
@@ -303,8 +326,9 @@ const PatientMedicalFileView: React.FC = () => {
                 <textarea
                   value={medicalFileData.procedureInfo.operativeNotes}
                   onChange={(e) => handleFieldChange('procedureInfo', 'operativeNotes', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
                   rows={6}
+                  disabled={isReadOnly}
                 />
               </div>
             </div>
@@ -328,8 +352,9 @@ const PatientMedicalFileView: React.FC = () => {
               <textarea
                 value={medicalFileData.followUpNotes}
                 onChange={(e) => setMedicalFileData(prev => ({ ...prev, followUpNotes: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
                 rows={16}
+                disabled={isReadOnly}
               />
             </div>
           </div>
@@ -355,7 +380,8 @@ const PatientMedicalFileView: React.FC = () => {
                     type="text"
                     value={medicalFileData.dischargeRecommendations[field.key as keyof typeof medicalFileData.dischargeRecommendations] || ''}
                     onChange={(e) => handleFieldChange('dischargeRecommendations', field.key, e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={isReadOnly}
                   />
                 </div>
               ))}
@@ -424,31 +450,45 @@ const PatientMedicalFileView: React.FC = () => {
                 <span className="sm:hidden">Belge</span>
               </button>
               
-              <button
-                onClick={handleSave}
-                disabled={saving || !hasUnsavedChanges}
-                className={`inline-flex items-center px-5 py-3 rounded-lg transition-colors shadow-sm ${
-                  hasUnsavedChanges
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                    Kaydediliyor...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-5 h-5 mr-2" />
-                    {hasUnsavedChanges ? 'Kaydet' : 'Kaydedildi'}
-                  </>
-                )}
-              </button>
+              {!isReadOnly && (
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !hasUnsavedChanges}
+                  className={`inline-flex items-center px-5 py-3 rounded-lg transition-colors shadow-sm ${
+                    hasUnsavedChanges
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                      Kaydediliyor...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5 mr-2" />
+                      {hasUnsavedChanges ? 'Kaydet' : 'Kaydedildi'}
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {isReadOnly && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center space-x-2">
+            <AlertCircle className="w-5 h-5 text-blue-600" />
+            <span className="text-blue-700">
+              Bu hasta kaydını sadece oluşturan kişi düzenleyebilir.
+              {patientData?.created_by_name && ` Kayıt sahibi: ${patientData.created_by_name}`}
+            </span>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
@@ -610,13 +650,13 @@ const PatientMedicalFileView: React.FC = () => {
         isOpen={showDocumentModal}
         onClose={() => setShowDocumentModal(false)}
         medicalFileData={medicalFileData}
-        patientData={patientData}
+        patientData={patientData as Record<string, unknown> | null}
       />
 
       {/* Enhanced Chat Widget with Document Generation */}
       <EnhancedChatWidget
         medicalFileData={medicalFileData}
-        patientData={patientData}
+        patientData={patientData as Record<string, unknown> | undefined}
         patientId={patientId}
       />
     </div>
@@ -624,3 +664,4 @@ const PatientMedicalFileView: React.FC = () => {
 };
 
 export default PatientMedicalFileView;
+

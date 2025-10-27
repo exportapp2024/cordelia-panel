@@ -63,6 +63,8 @@ export async function fetchMedicalFile(userId: string, patientId: string) {
   if (!res.ok) throw new Error('Failed to fetch medical file');
   return res.json() as Promise<{ medicalFile: {
     patient_number?: number;
+    created_by_user_id?: string;
+    created_by_name?: string | null;
     data?: {
       name?: string;
       national_id?: string;
@@ -96,6 +98,9 @@ export async function updateMedicalFile(userId: string, patientId: string, medic
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(medicalData)
   });
-  if (!res.ok) throw new Error('Failed to update medical file');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: 'Failed to update medical file' }));
+    throw new Error(errorData.error || 'Failed to update medical file');
+  }
   return res.json();
 }
