@@ -1,6 +1,7 @@
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import { MedicalFileData } from '../types/medicalFile';
+import cordeliaLogo from '../assets/cordelia.png';
 
 // Configure pdfmake with fonts - production-safe approach
 if (typeof pdfMake.vfs === 'undefined') {
@@ -20,6 +21,58 @@ const formatDate = (dateString: string): string => {
     return date.toLocaleDateString('tr-TR');
   } catch {
     return dateString; // Return original string on any error
+  }
+};
+
+// Helper function to format current date (for header)
+const formatCurrentDate = (language: 'tr' | 'en'): string => {
+  const date = new Date();
+  if (language === 'tr') {
+    return date.toLocaleDateString('tr-TR');
+  } else {
+    return date.toLocaleDateString('en-US');
+  }
+};
+
+// Helper function to format timestamp (date and time for footer)
+const formatTimestamp = (language: 'tr' | 'en'): string => {
+  const date = new Date();
+  if (language === 'tr') {
+    return date.toLocaleString('tr-TR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } else {
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+};
+
+// Helper function to convert image to base64
+const convertImageToBase64 = async (imagePath: string): Promise<string> => {
+  try {
+    const response = await fetch(imagePath);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        resolve(base64data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    return '';
   }
 };
 
@@ -221,9 +274,58 @@ export const generateEpicrisisDocument = async (
 ): Promise<{ url: string; filename: string }> => {
   const labels = language === 'tr' ? turkishLabels.epicrisis : englishLabels.epicrisis;
   
+  // Convert logo to base64
+  const logoBase64 = await convertImageToBase64(cordeliaLogo);
+  const currentDate = formatCurrentDate(language);
+  const timestamp = formatTimestamp(language);
+  
   const docDefinition = {
     pageSize: 'A4',
-    pageMargins: [40, 60, 40, 60],
+    pageMargins: [40, 80, 40, 100],
+    header: function(currentPage: number, pageCount: number) {
+      void currentPage;
+      void pageCount;
+      return {
+        text: currentDate,
+        alignment: 'right',
+        fontSize: 9,
+        margin: [0, 20, 20, 0],
+        color: '#666666'
+      };
+    },
+    footer: function(currentPage: number, pageCount: number) {
+      void currentPage;
+      void pageCount;
+      return {
+        columns: [
+          logoBase64 ? {
+            columns: [
+              {
+                image: logoBase64,
+                width: 30,
+                alignment: 'left'
+              },
+              {
+                text: 'Cordelia',
+                fontSize: 12,
+                bold: true,
+                alignment: 'left',
+                margin: [5, 7, 0, 0],
+                color: '#666666'
+              }
+            ]
+          } : { text: '' },
+          {
+            text: timestamp,
+            alignment: 'right',
+            fontSize: 9,
+            margin: [0, 10, 0, 10],
+            color: '#666666'
+          }
+        ],
+        margin: [40, 10, 40, 10]
+      };
+    },
     content: [
   // Title
       {
@@ -325,81 +427,94 @@ export const generateEpicrisisDocument = async (
         ]
       },
       
-      // Preoperative Evaluation Section
-      {
-        text: labels.sections.preoperativeEval,
-        fontSize: 14,
-        bold: true,
-        margin: [0, 20, 0, 10]
-      },
+      // Preoperative Evaluation and Procedure Information Sections (Side by Side)
       {
         columns: [
           {
             width: '50%',
-            table: {
-              body: [
-                [labels.fields.vitalSigns, medicalFileData.preoperativeEvaluation.vitalSigns || '___________']
-              ]
-            },
-            layout: 'noBorders'
+            stack: [
+              {
+                text: labels.sections.preoperativeEval,
+                fontSize: 14,
+                bold: true,
+                margin: [0, 20, 0, 10]
+              },
+              {
+                table: {
+                  body: [
+                    [labels.fields.vitalSigns, medicalFileData.preoperativeEvaluation.vitalSigns || '___________'],
+                    [labels.fields.physicalExam, medicalFileData.preoperativeEvaluation.physicalExam || '___________']
+                  ]
+                },
+                layout: 'noBorders'
+              }
+            ]
           },
           {
             width: '50%',
-            table: {
-              body: [
-                [labels.fields.physicalExam, medicalFileData.preoperativeEvaluation.physicalExam || '___________']
-              ]
-            },
-            layout: 'noBorders'
+            stack: [
+              {
+                text: labels.sections.procedureInfo,
+                fontSize: 14,
+                bold: true,
+                margin: [0, 20, 0, 10]
+              },
+              {
+                table: {
+                  body: [
+                    [labels.fields.plannedProcedures, medicalFileData.procedureInfo.plannedProcedures || '___________'],
+                    [labels.fields.operativeNotes, medicalFileData.procedureInfo.operativeNotes || '___________']
+                  ]
+                },
+                layout: 'noBorders'
+              }
+            ]
           }
-        ]
+        ],
+        columnGap: 15
       },
       
-      // Procedure Information Section
+      // Follow-up Notes and Discharge Recommendations Sections (Side by Side)
       {
-        text: labels.sections.procedureInfo,
-        fontSize: 14,
-        bold: true,
-        margin: [0, 20, 0, 10]
-      },
-      {
-        table: {
-          body: [
-            [labels.fields.plannedProcedures, medicalFileData.procedureInfo.plannedProcedures || '___________'],
-            [labels.fields.operativeNotes, medicalFileData.procedureInfo.operativeNotes || '___________']
-          ]
-        },
-        layout: 'noBorders'
-      },
-      
-      // Follow-up Notes Section
-      {
-        text: labels.sections.followUp,
-        fontSize: 14,
-        bold: true,
-        margin: [0, 20, 0, 10]
-      },
-      {
-        text: medicalFileData.followUpNotes || '___________',
-        fontSize: 10,
-        margin: [0, 0, 0, 20]
-      },
-      
-      // Discharge Recommendations Section
-      {
-        text: labels.sections.discharge,
-        fontSize: 14,
-        bold: true,
-        margin: [0, 0, 0, 10]
-      },
-      {
-        table: {
-          body: [
-            [labels.fields.medications, medicalFileData.dischargeRecommendations.medications || '___________'],
-            [labels.fields.activityRestrictions, medicalFileData.dischargeRecommendations.activityRestrictions || '___________']
-          ]
-        },
-        layout: 'noBorders'
+        columns: [
+          {
+            width: '50%',
+            stack: [
+              {
+                text: labels.sections.followUp,
+                fontSize: 14,
+                bold: true,
+                margin: [0, 20, 0, 10]
+              },
+              {
+                text: medicalFileData.followUpNotes || '___________',
+                fontSize: 10,
+                margin: [0, 0, 0, 20]
+              }
+            ]
+          },
+          {
+            width: '50%',
+            stack: [
+              {
+                text: labels.sections.discharge,
+                fontSize: 14,
+                bold: true,
+                margin: [0, 20, 0, 10]
+              },
+              {
+                table: {
+                  body: [
+                    [labels.fields.medications, medicalFileData.dischargeRecommendations.medications || '___________'],
+                    [labels.fields.activityRestrictions, medicalFileData.dischargeRecommendations.activityRestrictions || '___________']
+                  ]
+                },
+                layout: 'noBorders'
+              }
+            ]
+          }
+        ],
+        columnGap: 15
       }
     ],
     defaultStyle: {
@@ -429,9 +544,58 @@ export const generateFitToFlightDocument = async (
 ): Promise<{ url: string; filename: string }> => {
   const labels = language === 'tr' ? turkishLabels.fitToFlight : englishLabels.fitToFlight;
   
+  // Convert logo to base64
+  const logoBase64 = await convertImageToBase64(cordeliaLogo);
+  const currentDate = formatCurrentDate(language);
+  const timestamp = formatTimestamp(language);
+  
   const docDefinition = {
     pageSize: 'A4',
-    pageMargins: [40, 60, 40, 60],
+    pageMargins: [40, 80, 40, 100],
+    header: function(currentPage: number, pageCount: number) {
+      void currentPage;
+      void pageCount;
+      return {
+        text: currentDate,
+        alignment: 'right',
+        fontSize: 9,
+        margin: [0, 20, 20, 0],
+        color: '#666666'
+      };
+    },
+    footer: function(currentPage: number, pageCount: number) {
+      void currentPage;
+      void pageCount;
+      return {
+        columns: [
+          logoBase64 ? {
+            columns: [
+              {
+                image: logoBase64,
+                width: 30,
+                alignment: 'left'
+              },
+              {
+                text: 'Cordelia',
+                fontSize: 12,
+                bold: true,
+                alignment: 'left',
+                margin: [5, 0, 0, 0],
+                color: '#666666'
+              }
+            ]
+          } : { text: '' },
+          {
+            text: timestamp,
+            alignment: 'right',
+            fontSize: 9,
+            margin: [0, 10, 0, 10],
+            color: '#666666'
+          }
+        ],
+        margin: [40, 10, 40, 10]
+      };
+    },
     content: [
   // Title
       {
@@ -526,9 +690,58 @@ export const generateRestReportDocument = async (
 ): Promise<{ url: string; filename: string }> => {
   const labels = language === 'tr' ? turkishLabels.restReport : englishLabels.restReport;
   
+  // Convert logo to base64
+  const logoBase64 = await convertImageToBase64(cordeliaLogo);
+  const currentDate = formatCurrentDate(language);
+  const timestamp = formatTimestamp(language);
+  
   const docDefinition = {
     pageSize: 'A4',
-    pageMargins: [40, 60, 40, 60],
+    pageMargins: [40, 80, 40, 100],
+    header: function(currentPage: number, pageCount: number) {
+      void currentPage;
+      void pageCount;
+      return {
+        text: currentDate,
+        alignment: 'right',
+        fontSize: 9,
+        margin: [0, 20, 20, 0],
+        color: '#666666'
+      };
+    },
+    footer: function(currentPage: number, pageCount: number) {
+      void currentPage;
+      void pageCount;
+      return {
+        columns: [
+          logoBase64 ? {
+            columns: [
+              {
+                image: logoBase64,
+                width: 30,
+                alignment: 'left'
+              },
+              {
+                text: 'Cordelia',
+                fontSize: 12,
+                bold: true,
+                alignment: 'left',
+                margin: [5, 0, 0, 0],
+                color: '#666666'
+              }
+            ]
+          } : { text: '' },
+          {
+            text: timestamp,
+            alignment: 'right',
+            fontSize: 9,
+            margin: [0, 10, 0, 10],
+            color: '#666666'
+          }
+        ],
+        margin: [40, 10, 40, 10]
+      };
+    },
     content: [
   // Title
       {
