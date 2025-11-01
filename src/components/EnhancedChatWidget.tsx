@@ -276,6 +276,9 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
                               return;
                             }
 
+                            // Default to Turkish if language is not specified
+                            const documentLanguage = (language === 'en' || language === 'tr') ? language : 'tr';
+
                             let pdfResult;
                             const medicalData = patientData.medical_file;
 
@@ -283,19 +286,19 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
                               pdfResult = await generateEpicrisisDocument(
                                 medicalData,
                                 patientData,
-                                language
+                                documentLanguage
                               );
                             } else if (documentType === "fit_to_flight") {
                               pdfResult = await generateFitToFlightDocument(
                                 medicalData,
                                 patientData,
-                                language
+                                documentLanguage
                               );
                             } else if (documentType === "rest_report") {
                               pdfResult = await generateRestReportDocument(
                                 medicalData,
                                 patientData,
-                                language
+                                documentLanguage
                               );
                             } else {
                               alert("Bilinmeyen belge türü.");

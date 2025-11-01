@@ -12,6 +12,12 @@ import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 
 // Configure moment to use Turkish locale
 moment.locale('tr');
+// Set Monday as the first day of the week
+moment.updateLocale('tr', {
+  week: {
+    dow: 1, // Monday is the first day of the week
+  }
+});
 
 // Setup the localizer for react-big-calendar
 const localizer = momentLocalizer(moment);
@@ -624,9 +630,9 @@ export const MeetingsView: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow border border-gray-200">
+        <div className="bg-white rounded-lg shadow border border-gray-200 flex flex-col" style={{ height: 'calc(100vh - 12.5rem)' }}>
           {/* Custom Toolbar */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleToday}
@@ -687,8 +693,8 @@ export const MeetingsView: React.FC = () => {
           </div>
           </div>
                   
-          {/* Calendar Container with comfortable height + scroll inside grid */}
-          <div style={{ height: 900 }}>
+          {/* Calendar Container - flexes to fill remaining space */}
+          <div className="flex-1 overflow-hidden">
             <DnDCalendar
               localizer={localizer}
               events={events.map(convertToRBCEvent)}
@@ -728,7 +734,7 @@ export const MeetingsView: React.FC = () => {
               max={new Date(1970, 0, 1, 23, 59, 59)}
               formats={{
                 dayFormat: (date) =>
-                  date.toLocaleDateString('tr-TR', { weekday: 'long', day: '2-digit', month: '2-digit' }),
+                  date.toLocaleDateString('tr-TR', { weekday: 'long', day: '2-digit' }),
                 timeGutterFormat: (date) =>
                   date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false }),
                 dateFormat: (date) => date.toLocaleDateString('tr-TR', { day: 'numeric' }),

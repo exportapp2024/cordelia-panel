@@ -16,7 +16,7 @@ export interface Meeting {
 export interface Patient {
   id: string;
   user_id: string;
-  created_by_user_id: string;
+  created_by_user_id: string | null;
   created_by_name?: string | null;
   patient_number: number;
   data: {

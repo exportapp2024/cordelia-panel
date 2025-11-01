@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { X, FileText, Plane, Bed, Download, Loader2 } from 'lucide-react';
 import { MedicalFileData } from '../types/medicalFile';
 import { generateEpicrisisDocument, generateFitToFlightDocument, generateRestReportDocument } from '../utils/documentGenerator';
+import { buildApiUrl } from '../lib/api';
 
 interface DocumentGenerationModalProps {
   isOpen: boolean;
   onClose: () => void;
   medicalFileData: MedicalFileData;
   patientData: any;
+  userId?: string;
+  patientId?: string;
 }
 
 type DocumentType = 'epicrisis' | 'fitToFlight' | 'restReport';
@@ -17,7 +20,9 @@ const DocumentGenerationModal: React.FC<DocumentGenerationModalProps> = ({
   isOpen,
   onClose,
   medicalFileData,
-  patientData
+  patientData,
+  userId,
+  patientId
 }) => {
   const [selectedDocumentType, setSelectedDocumentType] = useState<DocumentType | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<Language>('tr');
@@ -60,17 +65,49 @@ const DocumentGenerationModal: React.FC<DocumentGenerationModalProps> = ({
 
     setIsGenerating(true);
     try {
+      // If English is selected, translate the medical file data first
+      let finalMedicalFileData = medicalFileData;
+      
+      if (selectedLanguage === 'en' && userId && patientId) {
+        try {
+          const response = await fetch(
+            buildApiUrl(`users/${userId}/patients/${patientId}/medical-file/translate`),
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                medicalFileData: medicalFileData,
+                targetLanguage: 'en'
+              })
+            }
+          );
+          
+          if (response.ok) {
+            const result = await response.json();
+            finalMedicalFileData = result.translatedMedicalFileData;
+          } else {
+            console.warn('Translation failed, using original data');
+            // Fallback to original data
+            finalMedicalFileData = medicalFileData;
+          }
+        } catch (translationError) {
+          console.error('Translation error:', translationError);
+          // Fallback to original data
+          finalMedicalFileData = medicalFileData;
+        }
+      }
+      
       let generatedDocument;
       
       switch (selectedDocumentType) {
         case 'epicrisis':
-          generatedDocument = await generateEpicrisisDocument(medicalFileData, patientData, selectedLanguage);
+          generatedDocument = await generateEpicrisisDocument(finalMedicalFileData, patientData, selectedLanguage);
           break;
         case 'fitToFlight':
-          generatedDocument = await generateFitToFlightDocument(medicalFileData, patientData, selectedLanguage);
+          generatedDocument = await generateFitToFlightDocument(finalMedicalFileData, patientData, selectedLanguage);
           break;
         case 'restReport':
-          generatedDocument = await generateRestReportDocument(medicalFileData, patientData, selectedLanguage);
+          generatedDocument = await generateRestReportDocument(finalMedicalFileData, patientData, selectedLanguage);
           break;
         default:
           throw new Error('Geçersiz belge türü');

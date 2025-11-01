@@ -199,8 +199,10 @@ export const PatientsView: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
 
   // Helper function to check if current user can edit a patient
+  // If created_by_user_id is null/undefined (legacy records), allow editing since user_id already matches
+  // Otherwise, only the creator can edit
   const canEditPatient = (patient: Patient) => {
-    return patient.created_by_user_id === user?.id;
+    return !patient.created_by_user_id || patient.created_by_user_id === user?.id;
   };
 
   const handleAddPatient = async (patientData: {

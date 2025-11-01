@@ -71,7 +71,9 @@ const PatientMedicalFileView: React.FC = () => {
         });
         
         // Check if current user is the creator
-        const canEdit = medicalFile.created_by_user_id === user!.id;
+        // If created_by_user_id is null (legacy records), allow editing since user_id already matches
+        // Otherwise, only the creator can edit
+        const canEdit = !medicalFile.created_by_user_id || medicalFile.created_by_user_id === user!.id;
         setIsReadOnly(!canEdit);
         
         // Auto-populate common fields from patient.data
@@ -651,6 +653,8 @@ const PatientMedicalFileView: React.FC = () => {
         onClose={() => setShowDocumentModal(false)}
         medicalFileData={medicalFileData}
         patientData={patientData as Record<string, unknown> | null}
+        userId={user?.id}
+        patientId={patientId}
       />
 
       {/* Enhanced Chat Widget with Document Generation */}

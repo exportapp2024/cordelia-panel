@@ -8,13 +8,18 @@ if (typeof pdfMake.vfs === 'undefined') {
 }
 
 // Helper function to format date
+// If the input is not a valid date, returns it as-is (no validation)
 const formatDate = (dateString: string): string => {
   if (!dateString) return '';
   try {
     const date = new Date(dateString);
+    // Check if date is valid (invalid dates return NaN for getTime())
+    if (isNaN(date.getTime())) {
+      return dateString; // Return original string if invalid
+    }
     return date.toLocaleDateString('tr-TR');
   } catch {
-    return dateString;
+    return dateString; // Return original string on any error
   }
 };
 
