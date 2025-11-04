@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
+import { ScrollToTop } from './components/ScrollToTop';
 import { LandingPage } from './components/LandingPage';
 import { AboutPage } from './components/AboutPage';
 import { ContactPage } from './components/ContactPage';
@@ -80,6 +81,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/about" element={<AboutPage />} />
