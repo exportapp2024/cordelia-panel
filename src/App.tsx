@@ -99,7 +99,12 @@ function App() {
                 </>
               )
             ) : (
-              <Navigate to="/auth" replace />
+              // Preserve redirect to return after login
+              (() => {
+                const loc = window.location;
+                const redirect = encodeURIComponent(loc.pathname + loc.search);
+                return <Navigate to={`/auth?redirect=${redirect}`} replace />;
+              })()
             )
           }
         />

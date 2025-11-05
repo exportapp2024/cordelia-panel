@@ -72,6 +72,7 @@ export const MeetingsView: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [syncingEventId, setSyncingEventId] = useState<string | null>(null);
+  const [deepLinkParams, setDeepLinkParams] = useState<{ date?: string; appointmentId?: string; action?: string } | null>(null);
 
   // Convert CalendarEvent to react-big-calendar Event format
   const convertToRBCEvent = (event: CalendarEvent): CalendarEventRBC => {
@@ -362,11 +363,56 @@ export const MeetingsView: React.FC = () => {
   useEffect(() => {
     const initialize = async () => {
       if (user?.id) {
+        // Parse deep-link query params once on mount
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const date = params.get('date') || undefined;
+          const appointmentId = params.get('appointmentId') || undefined;
+          const action = params.get('action') || undefined;
+          if (date) {
+            const d = moment(date, 'YYYY-MM-DD', true);
+            if (d.isValid()) {
+              setCurrentDate(d.toDate());
+            }
+          }
+          if (date || appointmentId || action) {
+            setDeepLinkParams({ date, appointmentId, action });
+          }
+        } catch (e) {
+          // ignore bad query
+        }
         await fetchEvents();
       }
     };
     initialize();
   }, [user?.id, fetchEvents]);
+
+  // After events are loaded, if deep-link requests edit, open the details modal for the appointment
+  useEffect(() => {
+    if (!deepLinkParams) return;
+    const { appointmentId, action } = deepLinkParams;
+    if (action === 'edit' && appointmentId && events.length > 0) {
+      const target = events.find(e => String(e.id) === String(appointmentId));
+      if (target) {
+        setSelectedEvent(target);
+        // Optionally clean URL so modal doesn't reopen on refresh
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('action');
+          url.searchParams.delete('appointmentId');
+          window.history.replaceState({}, document.title, url.toString());
+        } catch (_) {
+          // noop
+        }
+        // Clear so it doesn't retrigger
+        setDeepLinkParams(null);
+      } else {
+        // Not found: show message once
+        setError('Randevu bulunamadı veya erişim yetkiniz yok.');
+        setDeepLinkParams(null);
+      }
+    }
+  }, [events, deepLinkParams]);
 
   // Format date for display
   const formatDate = (dateString: string) => {
