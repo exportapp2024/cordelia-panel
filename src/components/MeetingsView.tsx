@@ -157,12 +157,35 @@ export const MeetingsView: React.FC = () => {
       return;
     }
 
+    // For drag & drop, snap start to 15-minute intervals and calculate end based on original duration
+    const ms15 = 1000 * 60 * 15;
+    const roundedStart = new Date(Math.round(start.getTime() / ms15) * ms15);
+    
+    // Calculate original duration and maintain it
+    const originalDurationMs = end.getTime() - start.getTime();
+    const roundedEnd = new Date(roundedStart.getTime() + originalDurationMs);
+
+    // Calculate duration in minutes
+    const durationMinutes = originalDurationMs / (1000 * 60);
+
+    // Validate minimum duration (15 minutes)
+    if (durationMinutes < 15) {
+      setError('Randevu süresi en az 15 dakika olmalıdır.');
+      return;
+    }
+
+    // Validate maximum duration (12 hours = 720 minutes) to prevent accidental all-day events
+    if (durationMinutes > 720) {
+      setError('Tüm günlük etkinlikler desteklenmiyor. Randevu süresi en fazla 12 saat olabilir.');
+      return;
+    }
+
     // Optimistic update
     const prevEvents = events;
     const updated: CalendarEvent = {
       ...original,
-      start: { dateTime: start.toISOString() },
-      end: { dateTime: end.toISOString() }
+      start: { dateTime: roundedStart.toISOString() },
+      end: { dateTime: roundedEnd.toISOString() }
     };
     setSyncingEventId(original.id);
     setEvents(prevEvents.map(e => (e.id === original.id ? updated : e)));
@@ -174,8 +197,8 @@ export const MeetingsView: React.FC = () => {
         body: JSON.stringify({
           title: original.summary,
           description: original.description || '',
-          startTime: start.toISOString(),
-          endTime: end.toISOString(),
+          startTime: roundedStart.toISOString(),
+          endTime: roundedEnd.toISOString(),
           timeZone: 'Europe/Istanbul'
         })
       });
@@ -190,6 +213,20 @@ export const MeetingsView: React.FC = () => {
     }
   };
 
+  // Helper function to snap end time to 15-minute intervals
+  const snapToNext15Minutes = (date: Date, startDate: Date): Date => {
+    const ms = 1000 * 60 * 15; // 15 minutes in milliseconds
+    const rounded = new Date(Math.round(date.getTime() / ms) * ms);
+    
+    // Ensure minimum 15 minutes from start
+    const minEnd = new Date(startDate.getTime() + ms);
+    if (rounded < minEnd) {
+      return minEnd;
+    }
+    
+    return rounded;
+  };
+
   // DnD: resize event (drag edge)
   const handleEventResize = async ({ event, start, end }: { event: CalendarEventRBC; start: Date; end: Date }) => {
     if (!user?.id) return;
@@ -200,11 +237,31 @@ export const MeetingsView: React.FC = () => {
       return;
     }
 
+    // Only snap the end time to 15-minute intervals
+    // Keep start time as-is to allow resizing from bottom
+    const adjustedEnd = snapToNext15Minutes(end, start);
+
+    // Calculate duration in minutes
+    const durationMs = adjustedEnd.getTime() - start.getTime();
+    const durationMinutes = durationMs / (1000 * 60);
+
+    // Validate minimum duration (15 minutes)
+    if (durationMinutes < 15) {
+      setError('Randevu süresi en az 15 dakika olmalıdır.');
+      return;
+    }
+
+    // Validate maximum duration (12 hours = 720 minutes) to prevent accidental all-day events
+    if (durationMinutes > 720) {
+      setError('Tüm günlük etkinlikler desteklenmiyor. Randevu süresi en fazla 12 saat olabilir.');
+      return;
+    }
+
     const prevEvents = events;
     const updated: CalendarEvent = {
       ...original,
       start: { dateTime: start.toISOString() },
-      end: { dateTime: end.toISOString() }
+      end: { dateTime: adjustedEnd.toISOString() }
     };
     setSyncingEventId(original.id);
     setEvents(prevEvents.map(e => (e.id === original.id ? updated : e)));
@@ -217,7 +274,7 @@ export const MeetingsView: React.FC = () => {
           title: original.summary,
           description: original.description || '',
           startTime: start.toISOString(),
-          endTime: end.toISOString(),
+          endTime: adjustedEnd.toISOString(),
           timeZone: 'Europe/Istanbul'
         })
       });
@@ -728,8 +785,8 @@ export const MeetingsView: React.FC = () => {
                 }
                 return base;
               }}
-              step={60}
-              timeslots={1}
+              step={15}
+              timeslots={4}
               min={new Date(1970, 0, 1, 0, 0, 0)}
               max={new Date(1970, 0, 1, 23, 59, 59)}
               formats={{
@@ -948,14 +1005,6 @@ export const MeetingsView: React.FC = () => {
                       </span>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {selectedEvent.creator && (
-                <div className="pt-4 border-t border-gray-200">
-                  <p className="text-xs text-gray-500">
-                    Oluşturan: {selectedEvent.creator.displayName || selectedEvent.creator.email}
-                  </p>
                 </div>
               )}
             </div>

@@ -73,19 +73,20 @@
   border-right: none !important;
 }
 
-/* Time slots */
+/* Time slots - keep original height for visual consistency */
 .rbc-time-slot {
-  border-top: 1px solid #f3f4f6;
-  min-height: 60px;
+  border-top: none !important; /* Hide all internal slot borders */
+  min-height: 15px;
 }
 
 .rbc-timeslot-group {
   border-left: 1px solid #e5e7eb;
-  min-height: 60px;
+  min-height: 60px; /* Keep hour height at 60px */
+  border-bottom: 1px solid #f3f4f6; /* Show only hour marks */
 }
 
 .rbc-day-slot .rbc-time-slot {
-  border-top: 1px solid #f3f4f6;
+  border-top: none !important; /* Remove all slot borders */
 }
 
 /* Time columns for each day */
