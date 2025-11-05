@@ -8,7 +8,6 @@ import { ContactPage } from './components/ContactPage';
 import { AuthForm } from './components/AuthForm';
 import { Dashboard } from './components/Dashboard';
 import { EmailVerificationView } from './components/EmailVerificationView';
-import { CalendarSuccessView } from './components/CalendarSuccessView';
 import PatientMedicalFileView from './components/PatientMedicalFileView';
 import { useAuth } from './hooks/useAuth';
 import { EnhancedChatWidget } from './components/EnhancedChatWidget';
@@ -100,14 +99,16 @@ function App() {
                 </>
               )
             ) : (
-              <Navigate to="/auth" replace />
+              // Preserve redirect to return after login
+              (() => {
+                const loc = window.location;
+                const redirect = encodeURIComponent(loc.pathname + loc.search);
+                return <Navigate to={`/auth?redirect=${redirect}`} replace />;
+              })()
             )
           }
         />
-        <Route
-          path="/calendar"
-          element={user ? <CalendarSuccessRoute /> : <Navigate to="/auth" replace />}
-        />
+        {/* Calendar success route removed (Google Calendar no longer used) */}
         <Route
           path="/patient-file/:patientId"
           element={user ? <PatientMedicalFileView /> : <Navigate to="/auth" replace />}
@@ -118,18 +119,6 @@ function App() {
   );
 }
 
-// Separate component for calendar success route
-function CalendarSuccessRoute() {
-  // Check URL parameter immediately during initialization
-  const urlParams = new URLSearchParams(window.location.search);
-  const hasConnectedParam = urlParams.get('connected') === 'true';
-
-  if (hasConnectedParam) {
-    return <CalendarSuccessView onNavigateHome={() => window.location.href = '/'} />;
-  }
-
-  // If no success parameter, redirect to home
-  return <Navigate to="/" replace />;
-}
+// Calendar success route removed
 
 export default App;

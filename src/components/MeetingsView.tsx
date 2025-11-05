@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar as CalendarIcon, Clock, RefreshCw, Settings, ExternalLink, Plus, X, CheckCircle, XCircle, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, CheckCircle, XCircle, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { buildApiUrl } from '../lib/api';
 import { useTeam } from '../hooks/useTeam';
@@ -57,8 +57,7 @@ export const MeetingsView: React.FC = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean | null>(null);
-  const [checkingConnection, setCheckingConnection] = useState(true);
+  const [isConnected] = useState<boolean | null>(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState({
@@ -73,6 +72,7 @@ export const MeetingsView: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [syncingEventId, setSyncingEventId] = useState<string | null>(null);
+  const [deepLinkParams, setDeepLinkParams] = useState<{ date?: string; appointmentId?: string; action?: string } | null>(null);
 
   // Convert CalendarEvent to react-big-calendar Event format
   const convertToRBCEvent = (event: CalendarEvent): CalendarEventRBC => {
@@ -302,42 +302,7 @@ export const MeetingsView: React.FC = () => {
     return `${fmt(start, { day: 'numeric', month: 'long' })} - ${fmt(end, { day: 'numeric', month: 'long', year: 'numeric' })}`;
   };
 
-  // Check calendar connection status
-  const checkConnection = useCallback(async () => {
-    if (!user?.id) return false;
-    
-    setCheckingConnection(true);
-    try {
-      const response = await fetch(buildApiUrl(`calendar/status/${user.id}`));
-      const data = await response.json();
-      
-      // For team system, we need to check if user has any calendar access
-      // (either as owner or team member)
-      if (data.connected) {
-        setIsConnected(true);
-        return true;
-      }
-      
-      // If not directly connected, check if user is a team member
-      const teamResponse = await fetch(buildApiUrl(`calendar/team/info/${user.id}`));
-      const teamData = await teamResponse.json();
-      
-      if (teamData.success && teamData.teamInfo) {
-        // User is a team member, so they have calendar access
-        setIsConnected(true);
-        return true;
-      }
-      
-      setIsConnected(false);
-      return false;
-    } catch (error) {
-      setIsConnected(false);
-      console.error(error);
-      return false;
-    } finally {
-      setCheckingConnection(false);
-    }
-  }, [user?.id]);
+  // Connection checks removed (local calendar always available)
 
   // Get calendar events
   const fetchEvents = useCallback(async () => {
@@ -361,49 +326,27 @@ export const MeetingsView: React.FC = () => {
       const data = await response.json();
       
       if (data.success) {
-        setEvents(data.events || []);
+        const mapped: CalendarEvent[] = (data.events || []).map((e: any) => ({
+          id: e.id,
+          summary: e.title,
+          description: e.description || '',
+          start: { dateTime: e.start_time },
+          end: { dateTime: e.end_time },
+          createdBy: e.user_id,
+        }));
+        setEvents(mapped);
       } else {
-        // Check if token expired
-        if (data.error?.includes('invalid_grant') || data.error?.includes('expired') || data.error?.includes('revoked')) {
-          setIsConnected(false);
-          setError('Google Calendar bağlantınızın süresi dolmuş. Lütfen tekrar bağlayın.');
-        } else {
-          throw new Error(data.error || 'Failed to fetch events');
-        }
+        throw new Error(data.error || 'Failed to fetch events');
       }
     } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : 'Etkinlikler yüklenirken bir hata oluştu';
-      if (errorMsg.includes('invalid_grant') || errorMsg.includes('expired') || errorMsg.includes('revoked')) {
-        setIsConnected(false);
-        setError('Google Calendar bağlantınızın süresi dolmuş. Lütfen tekrar bağlayın.');
-      } else {
-        setError(errorMsg);
-      }
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
-  // Get Google Calendar auth URL
-  const getAuthUrl = async () => {
-    if (!user?.id) {
-      setError('Kullanıcı bilgisi bulunamadı');
-      return;
-    }
-    
-    try {
-      const response = await fetch(buildApiUrl(`calendar/auth-url/${user.id}`));
-      const data = await response.json();
-      
-      if (data.authUrl) {
-        window.open(data.authUrl, '_blank');
-      } else {
-        throw new Error(data.error || 'Auth URL alınamadı');
-      }
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'Yetkilendirme URL\'si alınırken bir hata oluştu');
-    }
-  };
+  // Google auth removed
 
   // Handle invitation acceptance
   const handleAcceptInvitation = async (invitationId: string) => {
@@ -476,39 +419,57 @@ export const MeetingsView: React.FC = () => {
   // Initialize component
   useEffect(() => {
     const initialize = async () => {
-      // Check URL parameters for OAuth callback
-      const urlParams = new URLSearchParams(window.location.search);
-      const connected = urlParams.get('connected');
-      const error = urlParams.get('error');
-      
-      if (connected === 'true') {
-        setError(null);
-        // Clear URL parameters
-        window.history.replaceState({}, document.title, window.location.pathname);
-        // Force connection check
-        const isConnected = await checkConnection();
-        if (isConnected) {
-          await fetchEvents();
+      if (user?.id) {
+        // Parse deep-link query params once on mount
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const date = params.get('date') || undefined;
+          const appointmentId = params.get('appointmentId') || undefined;
+          const action = params.get('action') || undefined;
+          if (date) {
+            const d = moment(date, 'YYYY-MM-DD', true);
+            if (d.isValid()) {
+              setCurrentDate(d.toDate());
+            }
+          }
+          if (date || appointmentId || action) {
+            setDeepLinkParams({ date, appointmentId, action });
+          }
+        } catch (e) {
+          // ignore bad query
         }
-        return;
-      }
-      
-      if (error) {
-        setError('Google Calendar bağlantısı başarısız oldu. Lütfen tekrar deneyin.');
-        // Clear URL parameters
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return;
-      }
-      
-      // Normal initialization
-      const isConnected = await checkConnection();
-      if (isConnected) {
         await fetchEvents();
       }
     };
-    
     initialize();
-  }, [checkConnection, fetchEvents]);
+  }, [user?.id, fetchEvents]);
+
+  // After events are loaded, if deep-link requests edit, open the details modal for the appointment
+  useEffect(() => {
+    if (!deepLinkParams) return;
+    const { appointmentId, action } = deepLinkParams;
+    if (action === 'edit' && appointmentId && events.length > 0) {
+      const target = events.find(e => String(e.id) === String(appointmentId));
+      if (target) {
+        setSelectedEvent(target);
+        // Optionally clean URL so modal doesn't reopen on refresh
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('action');
+          url.searchParams.delete('appointmentId');
+          window.history.replaceState({}, document.title, url.toString());
+        } catch (_) {
+          // noop
+        }
+        // Clear so it doesn't retrigger
+        setDeepLinkParams(null);
+      } else {
+        // Not found: show message once
+        setError('Randevu bulunamadı veya erişim yetkiniz yok.');
+        setDeepLinkParams(null);
+      }
+    }
+  }, [events, deepLinkParams]);
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -571,98 +532,7 @@ export const MeetingsView: React.FC = () => {
     }
   };
 
-  if (checkingConnection) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <RefreshCw className="w-8 h-8 animate-spin text-emerald-600" />
-        <span className="ml-2 text-gray-600">Takvim bağlantısı kontrol ediliyor...</span>
-      </div>
-    );
-  }
-
-  if (isConnected === false) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Randevular</h1>
-          <p className="text-gray-600">Takviminizi yönetmek için Google Calendar'ı bağlayın veya bir takıma katılın</p>
-        </div>
-
-        {error && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-yellow-800 text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* Pending Invitations */}
-        {pendingInvitations.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">Bekleyen Takım Davetleri</h2>
-            {pendingInvitations.map((invitation) => (
-              <div key={invitation.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Users className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">{invitation.users?.name || 'Unknown'}</h3>
-                      <p className="text-sm text_gray-500">{invitation.users?.email || 'Unknown'}</p>
-                      <p className="text-xs text-gray-400">
-                        Davet edildi: {new Date(invitation.created_at).toLocaleDateString('tr-TR')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleRejectInvitation(invitation.id)}
-                      className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Daveti reddet"
-                    >
-                      <XCircle className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleAcceptInvitation(invitation.id)}
-                      className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors"
-                      title="Daveti kabul et"
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Connect Calendar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="text-center">
-            <CalendarIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Google Calendar Bağlantısı
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Randevularınızı yönetmek için 
-              Google Calendar hesabınızı bağlayın.
-            </p>
-            
-            <button
-              onClick={getAuthUrl}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2 mx-auto"
-            >
-              <ExternalLink className="w-5 h-5" />
-              <span>Google Calendar'ı Bağla</span>
-            </button>
-            
-            <p className="text-xs text-gray-500 mt-4">
-              Google hesabınızla güvenli bir şekilde bağlanacaksınız
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Connection gating and Google connect UI removed
 
   return (
     <div className="space-y-6">
@@ -736,14 +606,7 @@ export const MeetingsView: React.FC = () => {
                 <RefreshCw className={`${loading ? 'animate-spin' : ''} w-4 h-4`} />
                 <span>Yenile</span>
                       </button>
-                      <button
-                onClick={getAuthUrl}
-                disabled={!!syncingEventId}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
-              >
-                <Settings className="w-4 h-4" />
-                <span>Ayarlar</span>
-                      </button>
+              
             {syncingEventId && (
               <span className="text-xs text-gray-500 ml-2">Kaydediliyor...</span>
             )}

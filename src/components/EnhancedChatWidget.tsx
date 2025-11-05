@@ -42,7 +42,7 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
     // links [text](url)
     text = text.replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline text-blue-600 hover:text-blue-800">$1</a>'
+      '<a href="$2" class="underline text-blue-600 hover:text-blue-800">$1</a>'
     );
     // inline code
     text = text.replace(
