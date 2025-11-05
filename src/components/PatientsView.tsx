@@ -5,6 +5,20 @@ import { usePatients } from '../hooks/usePatients';
 import { useAuth } from '../hooks/useAuth';
 import { Patient } from '../types';
 
+// Helper function to format phone number for WhatsApp
+const formatPhoneForWhatsApp = (phone: string | null | undefined): string | null => {
+  if (!phone) return null;
+  
+  // Remove all non-digit characters (+, spaces, dashes, etc.)
+  const digitsOnly = phone.replace(/\D/g, '');
+  
+  // If no digits found, return null
+  if (!digitsOnly) return null;
+  
+  // Return WhatsApp URL
+  return `https://wa.me/${digitsOnly}`;
+};
+
 interface AddPatientModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -310,7 +324,26 @@ export const PatientsView: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.national_id || '—'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.phone || '—'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {patient.data.phone ? (
+                            <a
+                              href={formatPhoneForWhatsApp(patient.data.phone) || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-600 hover:text-emerald-700 hover:underline flex items-center space-x-1"
+                              onClick={(e) => {
+                                if (!formatPhoneForWhatsApp(patient.data.phone)) {
+                                  e.preventDefault();
+                                }
+                              }}
+                            >
+                              <Phone className="w-4 h-4" />
+                              <span>{patient.data.phone}</span>
+                            </a>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.address || '—'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.reason || '—'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -535,7 +568,19 @@ export const PatientsView: React.FC = () => {
                     {patient.data.phone && (
                       <div className="flex items-center space-x-2">
                         <Phone className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-900">{patient.data.phone}</span>
+                        <a
+                          href={formatPhoneForWhatsApp(patient.data.phone) || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-600 hover:text-emerald-700 hover:underline"
+                          onClick={(e) => {
+                            if (!formatPhoneForWhatsApp(patient.data.phone)) {
+                              e.preventDefault();
+                            }
+                          }}
+                        >
+                          {patient.data.phone}
+                        </a>
                       </div>
                     )}
                     {patient.data.address && (
