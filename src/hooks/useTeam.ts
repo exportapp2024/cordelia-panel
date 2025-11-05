@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { buildApiUrl } from '../lib/api';
+import { supabase } from '../lib/supabase';
 
 export interface TeamMember {
   id: string;
@@ -74,7 +75,10 @@ export const useTeam = (userId: string | null) => {
     setError(null);
     
     try {
-      const response = await fetch(buildApiUrl(`calendar/team/invitations/${userId}`));
+      const { data: authData } = await supabase.auth.getUser();
+      const email = authData.user?.email;
+      const query = email ? `?email=${encodeURIComponent(email)}` : '';
+      const response = await fetch(buildApiUrl(`calendar/team/invitations/${userId}${query}`));
       const data = await response.json();
       
       if (data.success) {
@@ -260,54 +264,21 @@ export const useTeam = (userId: string | null) => {
 
   // Disconnect calendar
   const disconnectCalendar = async () => {
-    if (!userId) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(buildApiUrl(`calendar/disconnect/${userId}`), {
-        method: 'DELETE',
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // Clear all team data
-        setTeamMembers([]);
-        setPendingInvitations([]);
-        setTeamInfo(null);
-      } else {
-        throw new Error(data.error || 'Failed to disconnect calendar');
-      }
-    } catch (err: any) {
-      console.error('Error disconnecting calendar:', err);
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+    // No-op: external calendar disconnected; keeping for API compatibility
+    setTeamMembers([]);
+    setPendingInvitations([]);
+    setTeamInfo(null);
   };
 
   // Check if user is team owner
   const checkIsTeamOwner = async () => {
     if (!userId) return false;
-    
     try {
-      const response = await fetch(buildApiUrl(`calendar/status/${userId}`));
+      const response = await fetch(buildApiUrl(`calendar/team/info/${userId}`));
       const data = await response.json();
-      
-      if (data.success && data.connected) {
-        // User has calendar access, check if they're the owner
-        const teamResponse = await fetch(buildApiUrl(`calendar/team/members/${userId}`));
-        const teamData = await teamResponse.json();
-        
-        if (teamData.success) {
-          const isOwner = teamData.members.some((member: TeamMember) => member.role === 'owner');
-          return isOwner;
-        }
+      if (data.success) {
+        return Array.isArray(data.teamInfo?.ownedTeams) && data.teamInfo.ownedTeams.length > 0;
       }
-      
       return false;
     } catch (error) {
       console.error('Error checking team owner status:', error);
