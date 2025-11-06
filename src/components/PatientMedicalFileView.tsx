@@ -159,19 +159,19 @@ const PatientMedicalFileView: React.FC = () => {
     if (hasUnsavedChanges) {
       setShowExitWarning(true);
     } else {
-      navigate('/');
+      navigate('/dashboard?view=patients');
     }
   };
 
   const handleExitWithoutSaving = () => {
     setShowExitWarning(false);
-    navigate('/');
+    navigate('/dashboard?view=patients');
   };
 
   const handleSaveAndExit = async () => {
     await handleSave();
     setShowExitWarning(false);
-    navigate('/');
+    navigate('/dashboard?view=patients');
   };
 
   const handleCancelExit = () => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { MeetingsView } from './MeetingsView';
 import { SettingsView } from './SettingsView';
@@ -6,8 +7,17 @@ import { PatientsView } from './PatientsView';
 import { ViewType } from '../types';
 
 export const Dashboard: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [currentView, setCurrentView] = useState<ViewType>('meetings');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Initialize view from URL query parameter
+  useEffect(() => {
+    const viewParam = searchParams.get('view');
+    if (viewParam && ['meetings', 'patients', 'settings'].includes(viewParam)) {
+      setCurrentView(viewParam as ViewType);
+    }
+  }, [searchParams]);
 
   // Close sidebar on window resize to desktop
   useEffect(() => {
