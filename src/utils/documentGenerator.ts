@@ -269,7 +269,7 @@ const englishLabels = {
 // Generate Epicrisis Document
 export const generateEpicrisisDocument = async (
   medicalFileData: MedicalFileData,
-  patientData: any,
+  _patientData: any,
   language: 'tr' | 'en'
 ): Promise<{ url: string; filename: string }> => {
   const labels = language === 'tr' ? turkishLabels.epicrisis : englishLabels.epicrisis;
@@ -281,7 +281,7 @@ export const generateEpicrisisDocument = async (
   
   const docDefinition = {
     pageSize: 'A4',
-    pageMargins: [40, 80, 40, 100],
+    pageMargins: [40, 80, 40, 100] as [number, number, number, number],
     header: function(currentPage: number, pageCount: number) {
       void currentPage;
       void pageCount;
@@ -539,7 +539,7 @@ export const generateEpicrisisDocument = async (
 // Generate Fit to Flight Certificate
 export const generateFitToFlightDocument = async (
   medicalFileData: MedicalFileData,
-  patientData: any,
+  _patientData: any,
   language: 'tr' | 'en'
 ): Promise<{ url: string; filename: string }> => {
   const labels = language === 'tr' ? turkishLabels.fitToFlight : englishLabels.fitToFlight;
@@ -551,7 +551,7 @@ export const generateFitToFlightDocument = async (
   
   const docDefinition = {
     pageSize: 'A4',
-    pageMargins: [40, 80, 40, 100],
+    pageMargins: [40, 80, 40, 100] as [number, number, number, number],
     header: function(currentPage: number, pageCount: number) {
       void currentPage;
       void pageCount;
@@ -685,7 +685,7 @@ export const generateFitToFlightDocument = async (
 // Generate Rest Report
 export const generateRestReportDocument = async (
   medicalFileData: MedicalFileData,
-  patientData: any,
+  _patientData: any,
   language: 'tr' | 'en'
 ): Promise<{ url: string; filename: string }> => {
   const labels = language === 'tr' ? turkishLabels.restReport : englishLabels.restReport;
@@ -697,7 +697,7 @@ export const generateRestReportDocument = async (
   
   const docDefinition = {
     pageSize: 'A4',
-    pageMargins: [40, 80, 40, 100],
+    pageMargins: [40, 80, 40, 100] as [number, number, number, number],
     header: function(currentPage: number, pageCount: number) {
       void currentPage;
       void pageCount;

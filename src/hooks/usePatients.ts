@@ -95,6 +95,7 @@ export const usePatients = (userId: string | null) => {
 
   useEffect(() => {
     fetchPatients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   return {

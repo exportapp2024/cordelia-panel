@@ -21,7 +21,7 @@ export const AuthForm: React.FC = () => {
       lowercase: /[a-z]/.test(password),
       uppercase: /[A-Z]/.test(password),
       digit: /\d/.test(password),
-      symbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+      symbol: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password),
     };
   };
 

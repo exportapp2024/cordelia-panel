@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import { 
   Users, 
   UserPlus, 
-  Mail, 
   Trash2, 
   LogOut, 
   Calendar, 
   AlertCircle, 
   CheckCircle, 
-  XCircle,
   Loader2,
   RefreshCw
 } from 'lucide-react';
@@ -19,19 +17,15 @@ export const TeamManagementSection: React.FC = () => {
   const { user } = useAuth();
   const {
     teamMembers,
-    pendingInvitations,
     teamInfo,
     loading,
     error,
     inviteTeamMember,
-    acceptInvitation,
-    rejectInvitation,
     removeTeamMember,
     disconnectCalendar,
     getTeamMembers,
     getPendingInvitations,
-    getTeamInfo,
-    checkIsTeamOwner
+    getTeamInfo
   } = useTeam(user?.id || null);
 
   const [inviteEmail, setInviteEmail] = useState('');
@@ -52,22 +46,6 @@ export const TeamManagementSection: React.FC = () => {
       console.error('Error inviting member:', error);
       setInviteMessage(`Hata: ${error instanceof Error ? error.message : 'Davet gönderilemedi'}`);
       setTimeout(() => setInviteMessage(null), 5000);
-    }
-  };
-
-  const handleAcceptInvitation = async (invitationId: string) => {
-    try {
-      await acceptInvitation(invitationId);
-    } catch (error) {
-      console.error('Error accepting invitation:', error);
-    }
-  };
-
-  const handleRejectInvitation = async (invitationId: string) => {
-    try {
-      await rejectInvitation(invitationId);
-    } catch (error) {
-      console.error('Error rejecting invitation:', error);
     }
   };
 

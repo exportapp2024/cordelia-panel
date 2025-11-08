@@ -16,20 +16,6 @@ import {
 import { Helmet } from 'react-helmet-async';
 import { PublicHeader } from './PublicHeader';
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 60 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6 }
-};
-
-const staggerContainer = {
-  animate: {
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-};
-
 const AnimatedCounter: React.FC<{ end: number; suffix?: string; duration?: number }> = ({
   end,
   suffix = '',
