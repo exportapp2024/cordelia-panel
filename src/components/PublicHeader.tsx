@@ -40,13 +40,9 @@ export const PublicHeader: React.FC = () => {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <Link to="/" className="flex items-center space-x-3 group">
-            <motion.div
-              whileHover={{ rotate: 360 }}
-              transition={{ duration: 0.6 }}
-              className="w-10 h-10"
-            >
+            <div className="w-10 h-10">
               <img src={cordeliaLogo} alt="Cordelia" className="w-full h-full object-contain" />
-            </motion.div>
+            </div>
             <span className={`text-2xl font-bold transition-colors ${
               isScrolled ? 'text-gray-900' : 'text-gray-900'
             }`}>
