@@ -139,9 +139,9 @@ export const LandingPage: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.3 }}
-                className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight"
+                className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight max-w-5xl mx-auto text-center"
               >
-                Zamanınızı Veri Girişi Değil, Değer Yaratma Doldursun
+                Zamanınızı Veri Girişi Değil Değer Yaratma Doldursun
               </motion.h1>
 
               <motion.p
