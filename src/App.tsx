@@ -8,6 +8,7 @@ import { ContactPage } from './components/ContactPage';
 import { AuthForm } from './components/AuthForm';
 import { Dashboard } from './components/Dashboard';
 import { EmailVerificationView } from './components/EmailVerificationView';
+import { ResetPasswordView } from './components/ResetPasswordView';
 import PatientMedicalFileView from './components/PatientMedicalFileView';
 import { useAuth } from './hooks/useAuth';
 import { EnhancedChatWidget } from './components/EnhancedChatWidget';
@@ -33,6 +34,42 @@ function App() {
     };
     checkEmailVerification();
   }, [user]);
+
+  // Handle password recovery callback
+  React.useEffect(() => {
+    const handlePasswordRecovery = async () => {
+      // Check URL hash for password recovery token
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const type = hashParams.get('type');
+
+      if (accessToken && type === 'recovery') {
+        // Token is in URL, user will be handled by ResetPasswordView
+        // Just ensure we're on the right route
+        if (window.location.pathname !== '/reset-password') {
+          window.history.replaceState(null, '', '/reset-password');
+        }
+      }
+    };
+
+    handlePasswordRecovery();
+
+    // Listen for PASSWORD_RECOVERY event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          // Redirect to reset password page
+          if (window.location.pathname !== '/reset-password') {
+            window.location.href = '/reset-password';
+          }
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -86,6 +123,10 @@ function App() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <AuthForm />} />
+        <Route
+          path="/reset-password"
+          element={<ResetPasswordView />}
+        />
         <Route
           path="/dashboard"
           element={
