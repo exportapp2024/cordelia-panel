@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { User, Mail, Shield, LogOut } from 'lucide-react';
+import { User, Shield, LogOut } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { TeamManagementSection } from './TeamManagementSection';
 
 export const SettingsView: React.FC = () => {
-  const { user, updateProfile, signOut } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -35,14 +35,6 @@ export const SettingsView: React.FC = () => {
       setMessage(`Hata: ${error.message}`);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
     }
   };
 

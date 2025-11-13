@@ -293,6 +293,7 @@ export const useTeam = (userId: string | null) => {
       getPendingInvitations();
       getTeamInfo();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   return {

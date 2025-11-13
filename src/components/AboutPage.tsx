@@ -13,12 +13,6 @@ import {
   Zap
 } from 'lucide-react';
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 60 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6 }
-};
-
 const ValueCard: React.FC<{
   icon: React.ReactNode;
   title: string;

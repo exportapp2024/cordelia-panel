@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, CheckCircle, XCircle, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { buildApiUrl } from '../lib/api';
-import { useTeam } from '../hooks/useTeam';
 import { Calendar, momentLocalizer, SlotInfo, Event as RBCEvent, Views } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
@@ -53,11 +52,9 @@ interface CalendarEventRBC extends RBCEvent {
 
 export const MeetingsView: React.FC = () => {
   const { user } = useAuth();
-  const { pendingInvitations, acceptInvitation, rejectInvitation } = useTeam(user?.id || null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isConnected] = useState<boolean | null>(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState({
@@ -348,31 +345,6 @@ export const MeetingsView: React.FC = () => {
 
   // Google auth removed
 
-  // Handle invitation acceptance
-  const handleAcceptInvitation = async (invitationId: string) => {
-    try {
-      await acceptInvitation(invitationId);
-      // Refresh connection status after accepting invitation
-      const isConnected = await checkConnection();
-      if (isConnected) {
-        await fetchEvents();
-      }
-    } catch (error) {
-      console.error(error);
-      setError('Davet kabul edilirken bir hata oluştu');
-    }
-  };
-
-  // Handle invitation rejection
-  const handleRejectInvitation = async (invitationId: string) => {
-    try {
-      await rejectInvitation(invitationId);
-    } catch (error) {
-      console.error(error);
-      setError('Davet reddedilirken bir hata oluştu');
-    }
-  };
-
   // Check if user can modify an event
   const canModifyEvent = (event: CalendarEvent) => {
     if (!user?.id) return false;
@@ -435,7 +407,7 @@ export const MeetingsView: React.FC = () => {
           if (date || appointmentId || action) {
             setDeepLinkParams({ date, appointmentId, action });
           }
-        } catch (e) {
+        } catch {
           // ignore bad query
         }
         await fetchEvents();
@@ -458,7 +430,7 @@ export const MeetingsView: React.FC = () => {
           url.searchParams.delete('action');
           url.searchParams.delete('appointmentId');
           window.history.replaceState({}, document.title, url.toString());
-        } catch (_) {
+        } catch {
           // noop
         }
         // Clear so it doesn't retrigger

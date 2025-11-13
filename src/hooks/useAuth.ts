@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 export interface AuthUser {
@@ -45,7 +45,7 @@ export const useAuth = () => {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (_event, session) => {
         if (!mounted) return;
 
         

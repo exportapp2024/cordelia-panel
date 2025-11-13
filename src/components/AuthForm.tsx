@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Mail, Lock, User } from 'lucide-react';
+import { Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import cordeliaLogo from '../assets/cordelia.png';
 
@@ -21,7 +22,7 @@ export const AuthForm: React.FC = () => {
       lowercase: /[a-z]/.test(password),
       uppercase: /[A-Z]/.test(password),
       digit: /\d/.test(password),
-      symbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+      symbol: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password),
     };
   };
 
@@ -155,7 +156,15 @@ export const AuthForm: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 relative">
+          <Link
+            to="/"
+            className="absolute top-6 left-5 w-10 h-10 rounded-full hover:bg-emerald-100 flex items-center justify-center transition-colors group"
+            title="Anasayfaya Dön"
+          >
+            <ArrowLeft className="w-6 h-6 text-white-500 group-hover:text-emerald-600 transition-colors" />
+          </Link>
+          
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 mb-4">
               <img src={cordeliaLogo} alt="Cordelia" className="w-full h-full object-contain" />

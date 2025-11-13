@@ -3,10 +3,7 @@ import { motion, useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   Calendar,
-  Users,
   FileText,
-  Shield,
-  Clock,
   Zap,
   CheckCircle,
   ArrowRight,
@@ -15,20 +12,6 @@ import {
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { PublicHeader } from './PublicHeader';
-
-const fadeInUp = {
-  initial: { opacity: 0, y: 60 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6 }
-};
-
-const staggerContainer = {
-  animate: {
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-};
 
 const AnimatedCounter: React.FC<{ end: number; suffix?: string; duration?: number }> = ({
   end,
@@ -75,13 +58,12 @@ const FeatureCard: React.FC<{
       whileHover={{ y: -8, transition: { duration: 0.2 } }}
       className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow"
     >
-      <motion.div
-        className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mb-4"
-        whileHover={{ rotate: 360, transition: { duration: 0.6 } }}
-      >
-        {icon}
-      </motion.div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+          {icon}
+        </div>
+        <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+      </div>
       <p className="text-gray-600 leading-relaxed">{description}</p>
     </motion.div>
   );
@@ -149,7 +131,7 @@ export const LandingPage: React.FC = () => {
               >
                 <span className="inline-flex items-center px-4 py-2 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium">
                   <Activity className="w-4 h-4 mr-2" />
-                  Tıbbi Platformunuz
+                  Klinik Süreçleri Basitleştirir, Hizmet Kalitesini Artırır
                 </span>
               </motion.div>
 
@@ -157,21 +139,34 @@ export const LandingPage: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.3 }}
-                className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight"
+                className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight max-w-5xl mx-auto text-center"
               >
-                Randevularınızı{' '}
-                <span className="text-emerald-600">Dijitalleştirin</span>
+                Zamanınızı Veri Girişi Değil Değer Yaratma Doldursun
               </motion.h1>
 
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.5 }}
-                className="text-xl md:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed"
+                className="text-xl md:text-2xl text-gray-600 mb-6 max-w-4xl mx-auto leading-relaxed"
               >
-                Hasta kayıtlarınızı güvenle yönetin, randevularınızı takip edin ve ekibinizle
-                sorunsuz iletişim kurun. Hepsi tek bir platformda.
+                Randevu, epikriz, PDF hazırlama, arşivleme, formlar, notlar, koordinasyon…
+                <br />
+                <span className="text-gray-800 font-semibold">Hepsini AI asistana devredin.</span>
+                <br />
+                Siz hastanıza kulak verin, veriyi Cordelia'ya halletsin.
               </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.6 }}
+                className="inline-block mb-10"
+              >
+                <span className="inline-flex items-center px-5 py-2 text-large rounded-full bg-white text-gray-700 font-medium shadow-sm">
+                  Hastanızın ihtiyacı teknoloji değil, sizin ilginiz.
+                </span>
+              </motion.div>
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -185,7 +180,7 @@ export const LandingPage: React.FC = () => {
                     whileTap={{ scale: 0.95 }}
                     className="group px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
                   >
-                    Hemen Başlayın
+                    Cordelia'yı Deneyin
                     <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </motion.button>
                 </Link>
@@ -195,7 +190,7 @@ export const LandingPage: React.FC = () => {
                     whileTap={{ scale: 0.95 }}
                     className="px-8 py-4 bg-white hover:bg-gray-50 text-gray-900 rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all"
                   >
-                    Daha Fazla Bilgi
+                    Nasıl Çalışır?
                   </motion.button>
                 </Link>
               </motion.div>
@@ -248,39 +243,21 @@ export const LandingPage: React.FC = () => {
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               <FeatureCard
-                icon={<Calendar className="w-6 h-6 text-emerald-600" />}
-                title="Akıllı Randevu Yönetimi"
-                description="Randevularınızı kolayca planlayın, düzenleyin ve takip edin. Otomatik hatırlatmalar ile hiçbir randevuyu kaçırmayın."
+                icon={<Zap className="w-6 h-6 text-emerald-600" />}
+                title="AI Sekreter"
+                description="Not alır, özetler, arşivler"
                 delay={0}
-              />
-              <FeatureCard
-                icon={<Users className="w-6 h-6 text-emerald-600" />}
-                title="Hasta Kayıt Sistemi"
-                description="Tüm hasta bilgilerini merkezi bir yerde güvenle saklayın. Hızlı arama ve filtreleme özellikleri ile anında erişim."
-                delay={0.1}
               />
               <FeatureCard
                 icon={<FileText className="w-6 h-6 text-emerald-600" />}
-                title="Dijital Dosyalama"
-                description="Tıbbi kayıtları, raporları ve notları dijital ortamda organize edin. Kağıtsız bir çalışma ortamı oluşturun."
-                delay={0.2}
-              />
-              <FeatureCard
-                icon={<Shield className="w-6 h-6 text-emerald-600" />}
-                title="Güvenli Veri Saklama"
-                description="KVKK uyumlu altyapı ile hasta verileriniz en üst düzey güvenlik standartlarında korunur."
-                delay={0}
-              />
-              <FeatureCard
-                icon={<Clock className="w-6 h-6 text-emerald-600" />}
-                title="Gerçek Zamanlı Senkronizasyon"
-                description="Tüm cihazlarınızda anlık güncellemeler. Nerede olursanız olun, verilerinize erişin."
+                title="Belge Otomasyonu"
+                description="Epikriz, onam, rapor, reçete: tek tuşla hazır"
                 delay={0.1}
               />
               <FeatureCard
-                icon={<Zap className="w-6 h-6 text-emerald-600" />}
-                title="Hızlı ve Kolay Kullanım"
-                description="Sezgisel arayüz sayesinde hiçbir teknik bilgiye ihtiyaç duymadan sistemi kullanabilirsiniz."
+                icon={<Calendar className="w-6 h-6 text-emerald-600" />}
+                title="Randevu & Hasta Takibi"
+                description="Randevu – hatırlatma – CRM"
                 delay={0.2}
               />
             </div>
@@ -416,7 +393,7 @@ export const LandingPage: React.FC = () => {
               viewport={{ once: true }}
             >
               <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-                Hemen Başlamaya Hazır mısınız?
+                Cordelia: Aradaki Kağıtları Değil, Hastayla Bağı Güçlendirir.
               </h2>
               <p className="text-xl text-gray-300 mb-10">
                 Ücretsiz hesabınızı oluşturun ve tüm özellikleri keşfedin
