@@ -22,7 +22,7 @@ export const ResetPasswordView: React.FC = () => {
       lowercase: /[a-z]/.test(password),
       uppercase: /[A-Z]/.test(password),
       digit: /\d/.test(password),
-      symbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+      symbol: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password),
     };
   };
 
@@ -67,7 +67,7 @@ export const ResetPasswordView: React.FC = () => {
         }
 
         // Fallback: check existing session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
           // Check if we're in password recovery mode by checking URL or session metadata
@@ -93,7 +93,8 @@ export const ResetPasswordView: React.FC = () => {
   // Listen for PASSWORD_RECOVERY event
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      async (event, _session) => {
         if (event === 'PASSWORD_RECOVERY') {
           setIsTokenValid(true);
         }

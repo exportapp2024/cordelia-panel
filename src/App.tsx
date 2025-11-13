@@ -56,7 +56,8 @@ function App() {
 
     // Listen for PASSWORD_RECOVERY event
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      async (event, _session) => {
         if (event === 'PASSWORD_RECOVERY') {
           // Redirect to reset password page
           if (window.location.pathname !== '/reset-password') {
