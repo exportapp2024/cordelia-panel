@@ -73,19 +73,20 @@
   border-right: none !important;
 }
 
-/* Time slots */
+/* Time slots - keep original height for visual consistency */
 .rbc-time-slot {
-  border-top: 1px solid #f3f4f6;
-  min-height: 60px;
+  border-top: none !important; /* Hide all internal slot borders */
+  min-height: 15px;
 }
 
 .rbc-timeslot-group {
   border-left: 1px solid #e5e7eb;
-  min-height: 60px;
+  min-height: 60px; /* Keep hour height at 60px */
+  border-bottom: 1px solid #f3f4f6; /* Show only hour marks */
 }
 
 .rbc-day-slot .rbc-time-slot {
-  border-top: 1px solid #f3f4f6;
+  border-top: none !important; /* Remove all slot borders */
 }
 
 /* Time columns for each day */
@@ -144,4 +145,66 @@
   display: none;
   width: 0;
   height: 0;
+}
+
+/* React International Phone - Group focus styles using Tailwind group */
+/* Match Tailwind's ring-2 ring-emerald-500 style exactly */
+.group:focus-within .react-international-phone-country-selector-button {
+  border-color: #10b981 !important;
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 0 2px rgb(16 185 129);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000) !important;
+}
+
+/* When dropdown button itself is focused */
+.react-international-phone-country-selector-button:focus,
+.react-international-phone-country-selector-button:focus-visible {
+  outline: none !important;
+  border-color: #10b981 !important;
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 0 2px rgb(16 185 129);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000) !important;
+}
+
+/* When dropdown is open, keep focus style */
+.react-international-phone-country-selector-button[aria-expanded="true"] {
+  border-color: #10b981 !important;
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 0 2px rgb(16 185 129);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000) !important;
+}
+
+/* Make dropdown popup-like when inside table cells */
+/* Ensure dropdown uses fixed positioning and calculates position correctly */
+.react-international-phone-country-selector {
+  position: relative !important;
+}
+
+/* When dropdown is inside a table, use fixed positioning */
+table .react-international-phone-country-selector-dropdown,
+tbody .react-international-phone-country-selector-dropdown {
+  position: fixed !important;
+  z-index: 9999 !important;
+  /* Position will be calculated by JavaScript */
+}
+
+/* Ensure table containers don't clip */
+table,
+tbody,
+thead {
+  position: relative;
+  overflow: visible !important;
+}
+
+/* Ensure table cells don't clip the dropdown */
+table td,
+table th {
+  overflow: visible !important;
+  position: relative;
+}
+
+/* Table wrapper should not clip vertically */
+.overflow-x-auto {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
 }

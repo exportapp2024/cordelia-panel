@@ -269,7 +269,7 @@ const englishLabels = {
 // Generate Epicrisis Document
 export const generateEpicrisisDocument = async (
   medicalFileData: MedicalFileData,
-  patientData: any,
+  _patientData: any,
   language: 'tr' | 'en'
 ): Promise<{ url: string; filename: string }> => {
   const labels = language === 'tr' ? turkishLabels.epicrisis : englishLabels.epicrisis;
@@ -281,7 +281,7 @@ export const generateEpicrisisDocument = async (
   
   const docDefinition = {
     pageSize: 'A4',
-    pageMargins: [40, 80, 40, 100],
+    pageMargins: [40, 80, 40, 100] as [number, number, number, number],
     header: function(currentPage: number, pageCount: number) {
       void currentPage;
       void pageCount;
@@ -344,37 +344,24 @@ export const generateEpicrisisDocument = async (
         margin: [0, 0, 0, 10]
       },
       {
-        columns: [
-          {
-            width: '50%',
-            table: {
-              body: [
-                [labels.fields.patientNumber, medicalFileData.patientInfo.patientNumber || '___________'],
-                [labels.fields.fullName, medicalFileData.patientInfo.fullName || '___________'],
-                [labels.fields.birthDate, formatDate(medicalFileData.patientInfo.birthDate) || '___________'],
-                [labels.fields.nationalId, medicalFileData.patientInfo.nationalId || '___________'],
-                [labels.fields.gender, medicalFileData.patientInfo.gender || '___________'],
-                [labels.fields.phoneNumber, medicalFileData.patientInfo.phoneNumber || '___________'],
-                [labels.fields.address, medicalFileData.patientInfo.address || '___________']
-              ]
-            },
-            layout: 'noBorders'
-          },
-          {
-            width: '50%',
-            table: {
-              body: [
-                [labels.fields.admissionDate, formatDate(medicalFileData.patientInfo.admissionDate) || '___________'],
-                [labels.fields.surgeryDate, formatDate(medicalFileData.patientInfo.surgeryDate) || '___________'],
-                [labels.fields.dischargeDate, formatDate(medicalFileData.patientInfo.dischargeDate) || '___________'],
-                [labels.fields.lastControlDate, formatDate(medicalFileData.patientInfo.lastControlDate) || '___________'],
-                [labels.fields.flightEligibilityDate, formatDate(medicalFileData.patientInfo.flightEligibilityDate) || '___________'],
-                [labels.fields.hospitalName, medicalFileData.patientInfo.hospitalName || '___________']
-              ]
-            },
-            layout: 'noBorders'
-          }
-        ]
+        table: {
+          body: [
+            [labels.fields.patientNumber, medicalFileData.patientInfo.patientNumber || '___________'],
+            [labels.fields.fullName, medicalFileData.patientInfo.fullName || '___________'],
+            [labels.fields.birthDate, formatDate(medicalFileData.patientInfo.birthDate) || '___________'],
+            [labels.fields.nationalId, medicalFileData.patientInfo.nationalId || '___________'],
+            [labels.fields.gender, medicalFileData.patientInfo.gender || '___________'],
+            [labels.fields.phoneNumber, medicalFileData.patientInfo.phoneNumber || '___________'],
+            [labels.fields.address, medicalFileData.patientInfo.address || '___________'],
+            [labels.fields.admissionDate, formatDate(medicalFileData.patientInfo.admissionDate) || '___________'],
+            [labels.fields.surgeryDate, formatDate(medicalFileData.patientInfo.surgeryDate) || '___________'],
+            [labels.fields.dischargeDate, formatDate(medicalFileData.patientInfo.dischargeDate) || '___________'],
+            [labels.fields.lastControlDate, formatDate(medicalFileData.patientInfo.lastControlDate) || '___________'],
+            [labels.fields.flightEligibilityDate, formatDate(medicalFileData.patientInfo.flightEligibilityDate) || '___________'],
+            [labels.fields.hospitalName, medicalFileData.patientInfo.hospitalName || '___________']
+          ]
+        },
+        layout: 'noBorders'
       },
   
   // Admission Reason Section
@@ -398,123 +385,85 @@ export const generateEpicrisisDocument = async (
         margin: [0, 0, 0, 10]
       },
       {
-        columns: [
-          {
-            width: '50%',
-            table: {
-              body: [
-                [labels.fields.height, medicalFileData.generalHealthHistory.height || '___________'],
-                [labels.fields.weight, medicalFileData.generalHealthHistory.weight || '___________'],
-                [labels.fields.weightChange, medicalFileData.generalHealthHistory.weightChange || '___________'],
-                [labels.fields.smoking, medicalFileData.generalHealthHistory.smoking || '___________'],
-                [labels.fields.alcohol, medicalFileData.generalHealthHistory.alcohol || '___________']
-              ]
-            },
-            layout: 'noBorders'
-          },
-          {
-            width: '50%',
-            table: {
-              body: [
-                [labels.fields.chronicDiseases, medicalFileData.generalHealthHistory.chronicDiseases || '___________'],
-                [labels.fields.medications, medicalFileData.generalHealthHistory.medications || '___________'],
-                [labels.fields.allergies, medicalFileData.generalHealthHistory.allergies || '___________'],
-                [labels.fields.previousSurgeries, medicalFileData.generalHealthHistory.previousSurgeries || '___________']
-              ]
-            },
-            layout: 'noBorders'
-          }
-        ]
+        table: {
+          body: [
+            [labels.fields.height, medicalFileData.generalHealthHistory.height || '___________'],
+            [labels.fields.weight, medicalFileData.generalHealthHistory.weight || '___________'],
+            [labels.fields.weightChange, medicalFileData.generalHealthHistory.weightChange || '___________'],
+            [labels.fields.smoking, medicalFileData.generalHealthHistory.smoking || '___________'],
+            [labels.fields.alcohol, medicalFileData.generalHealthHistory.alcohol || '___________'],
+            [labels.fields.chronicDiseases, medicalFileData.generalHealthHistory.chronicDiseases || '___________'],
+            [labels.fields.medications, medicalFileData.generalHealthHistory.medications || '___________'],
+            [labels.fields.allergies, medicalFileData.generalHealthHistory.allergies || '___________'],
+            [labels.fields.previousSurgeries, medicalFileData.generalHealthHistory.previousSurgeries || '___________']
+          ]
+        },
+        layout: 'noBorders'
       },
       
-      // Preoperative Evaluation and Procedure Information Sections (Side by Side)
+      // Preoperative Evaluation Section
       {
-        columns: [
-          {
-            width: '50%',
-            stack: [
-              {
-                text: labels.sections.preoperativeEval,
-                fontSize: 14,
-                bold: true,
-                margin: [0, 20, 0, 10]
-              },
-              {
-                table: {
-                  body: [
-                    [labels.fields.vitalSigns, medicalFileData.preoperativeEvaluation.vitalSigns || '___________'],
-                    [labels.fields.physicalExam, medicalFileData.preoperativeEvaluation.physicalExam || '___________']
-                  ]
-                },
-                layout: 'noBorders'
-              }
-            ]
-          },
-          {
-            width: '50%',
-            stack: [
-              {
-                text: labels.sections.procedureInfo,
-                fontSize: 14,
-                bold: true,
-                margin: [0, 20, 0, 10]
-              },
-              {
-                table: {
-                  body: [
-                    [labels.fields.plannedProcedures, medicalFileData.procedureInfo.plannedProcedures || '___________'],
-                    [labels.fields.operativeNotes, medicalFileData.procedureInfo.operativeNotes || '___________']
-                  ]
-                },
-                layout: 'noBorders'
-              }
-            ]
-          }
-        ],
-        columnGap: 15
+        text: labels.sections.preoperativeEval,
+        fontSize: 14,
+        bold: true,
+        margin: [0, 20, 0, 10],
+        pageBreak: 'before'
+      },
+      {
+        table: {
+          body: [
+            [labels.fields.vitalSigns, medicalFileData.preoperativeEvaluation.vitalSigns || '___________'],
+            [labels.fields.physicalExam, medicalFileData.preoperativeEvaluation.physicalExam || '___________']
+          ]
+        },
+        layout: 'noBorders'
       },
       
-      // Follow-up Notes and Discharge Recommendations Sections (Side by Side)
+      // Procedure Information Section
       {
-        columns: [
-          {
-            width: '50%',
-            stack: [
-              {
-                text: labels.sections.followUp,
-                fontSize: 14,
-                bold: true,
-                margin: [0, 20, 0, 10]
-              },
-              {
-                text: medicalFileData.followUpNotes || '___________',
-                fontSize: 10,
-                margin: [0, 0, 0, 20]
-              }
-            ]
-          },
-          {
-            width: '50%',
-            stack: [
-              {
-                text: labels.sections.discharge,
-                fontSize: 14,
-                bold: true,
-                margin: [0, 20, 0, 10]
-              },
-              {
-                table: {
-                  body: [
-                    [labels.fields.medications, medicalFileData.dischargeRecommendations.medications || '___________'],
-                    [labels.fields.activityRestrictions, medicalFileData.dischargeRecommendations.activityRestrictions || '___________']
-                  ]
-                },
-                layout: 'noBorders'
-              }
-            ]
-          }
-        ],
-        columnGap: 15
+        text: labels.sections.procedureInfo,
+        fontSize: 14,
+        bold: true,
+        margin: [0, 20, 0, 10]
+      },
+      {
+        table: {
+          body: [
+            [labels.fields.plannedProcedures, medicalFileData.procedureInfo.plannedProcedures || '___________'],
+            [labels.fields.operativeNotes, medicalFileData.procedureInfo.operativeNotes || '___________']
+          ]
+        },
+        layout: 'noBorders'
+      },
+      
+      // Follow-up Notes Section
+      {
+        text: labels.sections.followUp,
+        fontSize: 14,
+        bold: true,
+        margin: [0, 20, 0, 10]
+      },
+      {
+        text: medicalFileData.followUpNotes || '___________',
+        fontSize: 10,
+        margin: [0, 0, 0, 20]
+      },
+      
+      // Discharge Recommendations Section
+      {
+        text: labels.sections.discharge,
+        fontSize: 14,
+        bold: true,
+        margin: [0, 0, 0, 10]
+      },
+      {
+        table: {
+          body: [
+            [labels.fields.medications, medicalFileData.dischargeRecommendations.medications || '___________'],
+            [labels.fields.activityRestrictions, medicalFileData.dischargeRecommendations.activityRestrictions || '___________']
+          ]
+        },
+        layout: 'noBorders'
       }
     ],
     defaultStyle: {
@@ -539,7 +488,7 @@ export const generateEpicrisisDocument = async (
 // Generate Fit to Flight Certificate
 export const generateFitToFlightDocument = async (
   medicalFileData: MedicalFileData,
-  patientData: any,
+  _patientData: any,
   language: 'tr' | 'en'
 ): Promise<{ url: string; filename: string }> => {
   const labels = language === 'tr' ? turkishLabels.fitToFlight : englishLabels.fitToFlight;
@@ -551,7 +500,7 @@ export const generateFitToFlightDocument = async (
   
   const docDefinition = {
     pageSize: 'A4',
-    pageMargins: [40, 80, 40, 100],
+    pageMargins: [40, 80, 40, 100] as [number, number, number, number],
     header: function(currentPage: number, pageCount: number) {
       void currentPage;
       void pageCount;
@@ -685,7 +634,7 @@ export const generateFitToFlightDocument = async (
 // Generate Rest Report
 export const generateRestReportDocument = async (
   medicalFileData: MedicalFileData,
-  patientData: any,
+  _patientData: any,
   language: 'tr' | 'en'
 ): Promise<{ url: string; filename: string }> => {
   const labels = language === 'tr' ? turkishLabels.restReport : englishLabels.restReport;
@@ -697,7 +646,7 @@ export const generateRestReportDocument = async (
   
   const docDefinition = {
     pageSize: 'A4',
-    pageMargins: [40, 80, 40, 100],
+    pageMargins: [40, 80, 40, 100] as [number, number, number, number],
     header: function(currentPage: number, pageCount: number) {
       void currentPage;
       void pageCount;

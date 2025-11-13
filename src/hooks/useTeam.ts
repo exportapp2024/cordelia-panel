@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { buildApiUrl } from '../lib/api';
+import { supabase } from '../lib/supabase';
 
 export interface TeamMember {
   id: string;
@@ -19,16 +20,33 @@ export interface TeamInvitation {
   invited_email: string;
   status: string;
   created_at: string;
-  users: {
+  users?: {
     id: string;
     name: string;
+    email: string;
+  };
+  invited_user?: {
+    id?: string;
+    name: string | null;
     email: string;
   };
 }
 
 export interface TeamInfo {
-  team_owner_id: string;
-  users: {
+  team_owner_id?: string;
+  ownedTeams?: Array<{
+    id: string;
+    owner_id: string;
+    name: string | null;
+    created_at: string;
+  }>;
+  memberTeams?: Array<{
+    id: string;
+    owner_id: string;
+    name: string | null;
+    created_at: string;
+  }>;
+  users?: {
     id: string;
     name: string;
     email: string;
@@ -38,6 +56,7 @@ export interface TeamInfo {
 export const useTeam = (userId: string | null) => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<TeamInvitation[]>([]);
+  const [sentInvitations, setSentInvitations] = useState<TeamInvitation[]>([]);
   const [teamInfo, setTeamInfo] = useState<TeamInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +85,7 @@ export const useTeam = (userId: string | null) => {
     }
   };
 
-  // Get pending invitations for user
+  // Get pending invitations for user (received)
   const getPendingInvitations = async () => {
     if (!userId) return;
     
@@ -74,7 +93,10 @@ export const useTeam = (userId: string | null) => {
     setError(null);
     
     try {
-      const response = await fetch(buildApiUrl(`calendar/team/invitations/${userId}`));
+      const { data: authData } = await supabase.auth.getUser();
+      const email = authData.user?.email;
+      const query = email ? `?email=${encodeURIComponent(email)}` : '';
+      const response = await fetch(buildApiUrl(`calendar/team/invitations/${userId}${query}`));
       const data = await response.json();
       
       if (data.success) {
@@ -84,6 +106,30 @@ export const useTeam = (userId: string | null) => {
       }
     } catch (err: any) {
       console.error('Error getting invitations:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get sent invitations by team owner (only pending)
+  const getSentInvitations = async () => {
+    if (!userId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(buildApiUrl(`calendar/team/invitations/sent/${userId}?status=pending`));
+      const data = await response.json();
+      
+      if (data.success) {
+        setSentInvitations(data.invitations);
+      } else {
+        throw new Error(data.error || 'Failed to get sent invitations');
+      }
+    } catch (err: any) {
+      console.error('Error getting sent invitations:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -136,8 +182,9 @@ export const useTeam = (userId: string | null) => {
       const data = await response.json();
       
       if (data.success) {
-        // Refresh team members
+        // Refresh team members and sent invitations
         await getTeamMembers();
+        await getSentInvitations();
         return data.invitation;
       } else {
         throw new Error(data.error || 'Failed to send invitation');
@@ -174,7 +221,10 @@ export const useTeam = (userId: string | null) => {
       if (data.success) {
         // Refresh invitations and team info
         await getPendingInvitations();
+        // Small delay to ensure backend has processed
+        await new Promise(resolve => setTimeout(resolve, 300));
         await getTeamInfo();
+        await getTeamMembers(); // Also refresh team members to update UI
         return data.teamInfo;
       } else {
         throw new Error(data.error || 'Failed to accept invitation');
@@ -260,28 +310,59 @@ export const useTeam = (userId: string | null) => {
 
   // Disconnect calendar
   const disconnectCalendar = async () => {
+    // No-op: external calendar disconnected; keeping for API compatibility
+    setTeamMembers([]);
+    setPendingInvitations([]);
+    setTeamInfo(null);
+  };
+
+  // Check if user is team owner
+  const checkIsTeamOwner = async () => {
+    if (!userId) return false;
+    try {
+      const response = await fetch(buildApiUrl(`calendar/team/info/${userId}`));
+      const data = await response.json();
+      if (data.success) {
+        return Array.isArray(data.teamInfo?.ownedTeams) && data.teamInfo.ownedTeams.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking team owner status:', error);
+      return false;
+    }
+  };
+
+  // Create a new team
+  const createTeam = async (teamName: string) => {
     if (!userId) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      const response = await fetch(buildApiUrl(`calendar/disconnect/${userId}`), {
-        method: 'DELETE',
+      const response = await fetch(buildApiUrl('calendar/team/create'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          teamName: teamName.trim() || null,
+        }),
       });
       
       const data = await response.json();
       
       if (data.success) {
-        // Clear all team data
-        setTeamMembers([]);
-        setPendingInvitations([]);
-        setTeamInfo(null);
+        // Refresh team data
+        await getTeamMembers();
+        await getTeamInfo();
+        return data.team;
       } else {
-        throw new Error(data.error || 'Failed to disconnect calendar');
+        throw new Error(data.error || 'Failed to create team');
       }
     } catch (err: any) {
-      console.error('Error disconnecting calendar:', err);
+      console.error('Error creating team:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -289,29 +370,41 @@ export const useTeam = (userId: string | null) => {
     }
   };
 
-  // Check if user is team owner
-  const checkIsTeamOwner = async () => {
-    if (!userId) return false;
+  // Update team name
+  const updateTeamName = async (teamName: string) => {
+    if (!userId) return;
+    
+    setLoading(true);
+    setError(null);
     
     try {
-      const response = await fetch(buildApiUrl(`calendar/status/${userId}`));
+      const response = await fetch(buildApiUrl('calendar/team/update-name'), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          teamName: teamName.trim() || null,
+        }),
+      });
+      
       const data = await response.json();
       
-      if (data.success && data.connected) {
-        // User has calendar access, check if they're the owner
-        const teamResponse = await fetch(buildApiUrl(`calendar/team/members/${userId}`));
-        const teamData = await teamResponse.json();
-        
-        if (teamData.success) {
-          const isOwner = teamData.members.some((member: TeamMember) => member.role === 'owner');
-          return isOwner;
-        }
+      if (data.success) {
+        // Refresh team data
+        await getTeamMembers();
+        await getTeamInfo();
+        return data.team;
+      } else {
+        throw new Error(data.error || 'Failed to update team name');
       }
-      
-      return false;
-    } catch (error) {
-      console.error('Error checking team owner status:', error);
-      return false;
+    } catch (err: any) {
+      console.error('Error updating team name:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -321,17 +414,21 @@ export const useTeam = (userId: string | null) => {
       getTeamMembers();
       getPendingInvitations();
       getTeamInfo();
+      getSentInvitations();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   return {
     teamMembers,
     pendingInvitations,
+    sentInvitations,
     teamInfo,
     loading,
     error,
     getTeamMembers,
     getPendingInvitations,
+    getSentInvitations,
     getTeamInfo,
     inviteTeamMember,
     acceptInvitation,
@@ -339,5 +436,7 @@ export const useTeam = (userId: string | null) => {
     removeTeamMember,
     disconnectCalendar,
     checkIsTeamOwner,
+    createTeam,
+    updateTeamName,
   };
 };

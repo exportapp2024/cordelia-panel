@@ -8,7 +8,7 @@ import { ContactPage } from './components/ContactPage';
 import { AuthForm } from './components/AuthForm';
 import { Dashboard } from './components/Dashboard';
 import { EmailVerificationView } from './components/EmailVerificationView';
-import { CalendarSuccessView } from './components/CalendarSuccessView';
+import { ResetPasswordView } from './components/ResetPasswordView';
 import PatientMedicalFileView from './components/PatientMedicalFileView';
 import { useAuth } from './hooks/useAuth';
 import { EnhancedChatWidget } from './components/EnhancedChatWidget';
@@ -34,6 +34,42 @@ function App() {
     };
     checkEmailVerification();
   }, [user]);
+
+  // Handle password recovery callback
+  React.useEffect(() => {
+    const handlePasswordRecovery = async () => {
+      // Check URL hash for password recovery token
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const type = hashParams.get('type');
+
+      if (accessToken && type === 'recovery') {
+        // Token is in URL, user will be handled by ResetPasswordView
+        // Just ensure we're on the right route
+        if (window.location.pathname !== '/reset-password') {
+          window.history.replaceState(null, '', '/reset-password');
+        }
+      }
+    };
+
+    handlePasswordRecovery();
+
+    // Listen for PASSWORD_RECOVERY event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          // Redirect to reset password page
+          if (window.location.pathname !== '/reset-password') {
+            window.location.href = '/reset-password';
+          }
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -88,6 +124,10 @@ function App() {
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <AuthForm />} />
         <Route
+          path="/reset-password"
+          element={<ResetPasswordView />}
+        />
+        <Route
           path="/dashboard"
           element={
             user ? (
@@ -100,14 +140,16 @@ function App() {
                 </>
               )
             ) : (
-              <Navigate to="/auth" replace />
+              // Preserve redirect to return after login
+              (() => {
+                const loc = window.location;
+                const redirect = encodeURIComponent(loc.pathname + loc.search);
+                return <Navigate to={`/auth?redirect=${redirect}`} replace />;
+              })()
             )
           }
         />
-        <Route
-          path="/calendar"
-          element={user ? <CalendarSuccessRoute /> : <Navigate to="/auth" replace />}
-        />
+        {/* Calendar success route removed (Google Calendar no longer used) */}
         <Route
           path="/patient-file/:patientId"
           element={user ? <PatientMedicalFileView /> : <Navigate to="/auth" replace />}
@@ -118,18 +160,6 @@ function App() {
   );
 }
 
-// Separate component for calendar success route
-function CalendarSuccessRoute() {
-  // Check URL parameter immediately during initialization
-  const urlParams = new URLSearchParams(window.location.search);
-  const hasConnectedParam = urlParams.get('connected') === 'true';
-
-  if (hasConnectedParam) {
-    return <CalendarSuccessView onNavigateHome={() => window.location.href = '/'} />;
-  }
-
-  // If no success parameter, redirect to home
-  return <Navigate to="/" replace />;
-}
+// Calendar success route removed
 
 export default App;

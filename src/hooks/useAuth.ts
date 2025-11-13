@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 export interface AuthUser {
@@ -45,7 +45,7 @@ export const useAuth = () => {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (_event, session) => {
         if (!mounted) return;
 
         
@@ -159,6 +159,60 @@ export const useAuth = () => {
     }
   };
 
+  const resetPasswordForEmail = async (email: string) => {
+    try {
+      const redirectTo = `${window.location.origin}/reset-password`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+
+      if (error) {
+        // Rate limiting ve diğer hataları handle et
+        if (error.message.includes('rate limit') || error.message.includes('too many')) {
+          throw new Error('Çok fazla deneme yapıldı. Lütfen birkaç dakika bekleyin ve tekrar deneyin.');
+        }
+        throw new Error(error.message);
+      }
+
+      // Güvenlik: Email kayıtlı olmasa bile başarı mesajı döndür (email enumeration koruması)
+      return { success: true };
+    } catch (error) {
+      console.error('Reset password error:', error);
+      throw error;
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        // Token expiration kontrolü
+        if (error.message.includes('expired') || error.message.includes('invalid')) {
+          throw new Error('Şifre sıfırlama linki geçersiz veya süresi dolmuş. Lütfen yeni bir şifre sıfırlama isteği gönderin.');
+        }
+        // Rate limiting
+        if (error.message.includes('rate limit') || error.message.includes('too many')) {
+          throw new Error('Çok fazla deneme yapıldı. Lütfen birkaç dakika bekleyin.');
+        }
+        // Eski şifre ile aynı şifre
+        if (error.message.includes('same') || error.message.includes('previous')) {
+          throw new Error('Yeni şifre eski şifrenizden farklı olmalıdır.');
+        }
+        throw new Error(error.message);
+      }
+
+      // Şifre güncellendiğinde session invalidate edilir (Supabase otomatik yapar)
+      return { success: true };
+    } catch (error) {
+      console.error('Update password error:', error);
+      throw error;
+    }
+  };
+
   return {
     user,
     loading,
@@ -166,5 +220,7 @@ export const useAuth = () => {
     signIn,
     signOut,
     updateProfile,
+    resetPasswordForEmail,
+    updatePassword,
   };
 };

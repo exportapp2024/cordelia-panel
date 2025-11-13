@@ -1,11 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { User, Calendar, FileEdit, Phone, Loader2, AlertCircle, RefreshCw, MoreHorizontal, Edit3, Trash2, FileText, Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, Calendar, FileEdit, Phone, Loader2, AlertCircle, RefreshCw, MoreHorizontal, Edit3, Trash2, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePatients } from '../hooks/usePatients';
 import { useAuth } from '../hooks/useAuth';
 import { Patient } from '../types';
-import { PhoneInput } from 'react-international-phone';
-import 'react-international-phone/style.css';
 
 // Helper function to format phone number for WhatsApp
 const formatPhoneForWhatsApp = (phone: string | null | undefined): string | null => {
@@ -19,351 +17,6 @@ const formatPhoneForWhatsApp = (phone: string | null | undefined): string | null
   
   // Return WhatsApp URL
   return `https://wa.me/${digitsOnly}`;
-};
-
-interface EditableCellProps {
-  value: string | null | undefined;
-  patientId: string;
-  field: 'name' | 'national_id' | 'phone' | 'address' | 'reason';
-  onSave: (patientId: string, field: string, value: string | null) => Promise<void>;
-  canEdit: boolean;
-  className?: string;
-  displayValue?: string | React.ReactNode;
-  isPhone?: boolean;
-}
-
-const EditableCell: React.FC<EditableCellProps> = ({
-  value,
-  patientId,
-  field,
-  onSave,
-  canEdit,
-  className = '',
-  displayValue,
-  isPhone = false,
-}) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [draftValue, setDraftValue] = useState(value || '');
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showPhoneMenu, setShowPhoneMenu] = useState(false);
-  const [phoneMenuPosition, setPhoneMenuPosition] = useState<{ top: number; left: number } | null>(null);
-  const phoneMenuRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const phoneInputContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
-
-  // Fix dropdown position when inside table
-  useEffect(() => {
-    if (!isPhone || !isEditing) return;
-
-    const fixDropdownPosition = () => {
-      const dropdown = document.querySelector('.react-international-phone-country-selector-dropdown') as HTMLElement;
-      const button = phoneInputContainerRef.current?.querySelector('.react-international-phone-country-selector-button') as HTMLElement;
-      
-      if (dropdown && button) {
-        const buttonRect = button.getBoundingClientRect();
-        // For fixed position, use viewport coordinates (no scroll offset needed)
-        dropdown.style.position = 'fixed';
-        dropdown.style.top = `${buttonRect.bottom}px`;
-        dropdown.style.left = `${buttonRect.left}px`;
-        dropdown.style.zIndex = '9999';
-      }
-    };
-
-    // Fix position when dropdown opens
-    const observer = new MutationObserver(() => {
-      fixDropdownPosition();
-    });
-
-    if (phoneInputContainerRef.current) {
-      observer.observe(phoneInputContainerRef.current, {
-        childList: true,
-        subtree: true
-      });
-      
-      // Also fix on scroll/resize
-      window.addEventListener('scroll', fixDropdownPosition, true);
-      window.addEventListener('resize', fixDropdownPosition);
-      
-      // Initial fix
-      setTimeout(fixDropdownPosition, 100);
-    }
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('scroll', fixDropdownPosition, true);
-      window.removeEventListener('resize', fixDropdownPosition);
-    };
-  }, [isPhone, isEditing]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (phoneMenuRef.current && !phoneMenuRef.current.contains(event.target as Node)) {
-        setShowPhoneMenu(false);
-        setPhoneMenuPosition(null);
-      }
-    };
-
-    if (showPhoneMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-  }, [showPhoneMenu]);
-
-  const handleDoubleClick = () => {
-    if (canEdit && !isSaving) {
-      setIsEditing(true);
-      setDraftValue(value || '');
-      setError(null);
-    }
-  };
-
-  const handlePhoneClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!value) {
-      // If no phone value, just start editing
-      if (canEdit && !isSaving) {
-        setIsEditing(true);
-        setDraftValue('');
-        setError(null);
-      }
-      return;
-    }
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    setPhoneMenuPosition({
-      top: rect.bottom + 8,
-      left: rect.left,
-    });
-    setShowPhoneMenu(true);
-  };
-
-  const handleEditPhone = () => {
-    setShowPhoneMenu(false);
-    setPhoneMenuPosition(null);
-    if (canEdit && !isSaving) {
-      setIsEditing(true);
-      setDraftValue(value || '');
-      setError(null);
-    }
-  };
-
-  const handleGoToWhatsApp = () => {
-    const whatsappUrl = formatPhoneForWhatsApp(value);
-    if (whatsappUrl) {
-      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-    }
-    setShowPhoneMenu(false);
-    setPhoneMenuPosition(null);
-  };
-
-  const handleSave = async () => {
-    if (!canEdit) return;
-
-    const trimmedValue = draftValue.trim() || null;
-    const hasChanged = trimmedValue !== (value || null);
-
-    if (!hasChanged) {
-      setIsEditing(false);
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-
-    try {
-      await onSave(patientId, field, trimmedValue);
-      setIsEditing(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kaydetme hatası');
-      setDraftValue(value || '');
-      // Keep editing mode open on error so user can retry
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleCancel = () => {
-    setDraftValue(value || '');
-    setError(null);
-    setIsEditing(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSave();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      handleCancel();
-    }
-  };
-
-  if (isEditing) {
-    // Use PhoneInput for phone field
-    if (isPhone) {
-      return (
-        <span ref={phoneInputContainerRef} className="relative inline-block" style={{ margin: '0', padding: '0', minWidth: '200px' }}>
-          <PhoneInput
-            defaultCountry="tr"
-            value={draftValue}
-            onChange={(phone) => setDraftValue(phone)}
-            className="group"
-            inputClassName="px-1 border-0 border-b border-emerald-500 rounded-none focus:outline-none focus:ring-0 focus:border-emerald-500 text-sm bg-transparent group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500"
-            countrySelectorStyleProps={{
-              buttonClassName: "border-gray-300 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500 transition-all",
-              flagStyle: { paddingLeft: '8px' }
-            }}
-            onBlur={handleSave}
-            disabled={isSaving}
-            inputProps={{
-              onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSave();
-                } else if (e.key === 'Escape') {
-                  e.preventDefault();
-                  handleCancel();
-                }
-              }
-            }}
-          />
-          {isSaving && (
-            <span className="absolute right-1 top-1/2 transform -translate-y-1/2 pointer-events-none" style={{ lineHeight: '1.25rem' }}>
-              <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
-            </span>
-          )}
-          {error && (
-            <div className="absolute left-0 top-full mt-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded shadow z-10 whitespace-nowrap">
-              {error}
-            </div>
-          )}
-        </span>
-      );
-    }
-
-    // Regular input for other fields
-    return (
-      <span className="relative inline-block" style={{ margin: '0', padding: '0' }}>
-        <input
-          ref={inputRef}
-          type="text"
-          value={draftValue}
-          onChange={(e) => {
-            setDraftValue(e.target.value);
-            // Auto-resize input based on content
-            if (inputRef.current) {
-              inputRef.current.style.width = `${Math.max(50, Math.min(e.target.value.length * 8 + 16, 300))}px`;
-            }
-          }}
-          onBlur={handleSave}
-          onKeyDown={handleKeyDown}
-          disabled={isSaving}
-          className={`px-1 border-0 border-b border-emerald-500 rounded-none focus:outline-none focus:ring-0 focus:border-emerald-500 text-sm bg-transparent ${
-            error ? 'border-red-500' : ''
-          } ${isSaving ? 'opacity-50' : ''} ${className}`}
-          style={{ 
-            height: '1.25rem',
-            lineHeight: '1.25rem',
-            margin: '0',
-            paddingTop: '0',
-            paddingBottom: '0',
-            paddingLeft: '0.25rem',
-            paddingRight: '0.25rem',
-            boxSizing: 'border-box',
-            verticalAlign: 'baseline',
-            width: `${Math.max(50, Math.min((draftValue.length || 1) * 8 + 16, 300))}px`,
-            display: 'inline-block'
-          }}
-        />
-        {isSaving && (
-          <span className="absolute right-1 top-1/2 transform -translate-y-1/2 pointer-events-none" style={{ lineHeight: '1.25rem' }}>
-            <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
-          </span>
-        )}
-        {error && (
-          <div className="absolute left-0 top-full mt-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded shadow z-10 whitespace-nowrap">
-            {error}
-          </div>
-        )}
-      </span>
-    );
-  }
-
-  const display = displayValue !== undefined ? displayValue : (value || '—');
-  const isClickable = canEdit && !isSaving;
-
-  if (isPhone && !isEditing) {
-    const whatsappUrl = value ? formatPhoneForWhatsApp(value) : null;
-    return (
-      <div className="relative">
-        <div
-          onClick={handlePhoneClick}
-          className={`${isClickable || value ? 'cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors' : ''} ${className}`}
-          title={value ? 'Tıklayın: Düzenle veya WhatsApp\'a git' : isClickable ? 'Düzenlemek için tıklayın' : ''}
-        >
-          {value ? (
-            <span className="text-emerald-600 hover:text-emerald-700 flex items-center space-x-1">
-              <Phone className="w-4 h-4" />
-              <span>{value}</span>
-            </span>
-          ) : (
-            <span className="flex items-center space-x-1">
-              <Phone className="w-4 h-4 text-gray-400" />
-              <span>—</span>
-            </span>
-          )}
-        </div>
-        {showPhoneMenu && phoneMenuPosition && value && (
-          <div
-            ref={phoneMenuRef}
-            className="fixed z-50 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
-            style={{ top: `${phoneMenuPosition.top}px`, left: `${phoneMenuPosition.left}px` }}
-          >
-            <div className="py-1">
-              {canEdit && (
-                <button
-                  onClick={handleEditPhone}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
-                >
-                  <Edit3 className="w-4 h-4 mr-2" />
-                  Düzenle
-                </button>
-              )}
-              {whatsappUrl && (
-                <button
-                  onClick={handleGoToWhatsApp}
-                  className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-gray-50 flex items-center"
-                >
-                  <Phone className="w-4 h-4 mr-2" />
-                  Git
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      onDoubleClick={handleDoubleClick}
-      className={`${isClickable ? 'cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors' : ''} ${className}`}
-      title={isClickable ? 'Düzenlemek için çift tıklayın' : canEdit ? '' : 'Bu kaydı sadece oluşturan kişi düzenleyebilir'}
-    >
-      {display}
-    </div>
-  );
 };
 
 interface AddPatientModalProps {
@@ -460,16 +113,11 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Telefon
             </label>
-            <PhoneInput
-              defaultCountry="tr"
+            <input
+              type="text"
               value={formData.phone}
-              onChange={(phone) => setFormData({ ...formData, phone })}
-              className="w-full group"
-              inputClassName="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500"
-              countrySelectorStyleProps={{
-                buttonClassName: "border-gray-300 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500 transition-all",
-                flagStyle: { paddingLeft: '8px' }
-              }}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               disabled={loading}
             />
           </div>
@@ -552,7 +200,6 @@ export const PatientsView: React.FC = () => {
   const [editingPatient, setEditingPatient] = useState<{ id: string; current: string } | null>(null);
   const [notesDraft, setNotesDraft] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [editFull, setEditFull] = useState<{
     id: string;
     name: string;
@@ -570,10 +217,6 @@ export const PatientsView: React.FC = () => {
   // Otherwise, only the creator can edit
   const canEditPatient = (patient: Patient) => {
     return !patient.created_by_user_id || patient.created_by_user_id === user?.id;
-  };
-
-  const handleFieldSave = async (patientId: string, field: string, value: string | null) => {
-    await updatePatient(patientId, { [field]: value });
   };
 
   const handleAddPatient = async (patientData: {
@@ -610,14 +253,6 @@ export const PatientsView: React.FC = () => {
             <p className="text-gray-600 mt-1">Hasta kayıtlarınızı yönetin</p>
           </div>
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center px-3 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-              title="Yeni Hasta"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Yeni Hasta</span>
-            </button>
             <button
               onClick={() => refetch()}
               className="inline-flex items-center px-3 py-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
@@ -683,59 +318,34 @@ export const PatientsView: React.FC = () => {
                             <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
                               <User className="w-5 h-5 text-emerald-600" />
                             </div>
-                            <div className="ml-4 flex-1">
-                              <EditableCell
-                                value={patient.data.name}
-                                patientId={patient.id}
-                                field="name"
-                                onSave={handleFieldSave}
-                                canEdit={canEditPatient(patient)}
-                                className="text-sm font-medium text-gray-900"
-                              />
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{patient.data.name || '—'}</div>
                             </div>
                           </div>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.national_id || '—'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <EditableCell
-                            value={patient.data.national_id}
-                            patientId={patient.id}
-                            field="national_id"
-                            onSave={handleFieldSave}
-                            canEdit={canEditPatient(patient)}
-                            className="text-gray-900"
-                          />
+                          {patient.data.phone ? (
+                            <a
+                              href={formatPhoneForWhatsApp(patient.data.phone) || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-600 hover:text-emerald-700 hover:underline flex items-center space-x-1"
+                              onClick={(e) => {
+                                if (!formatPhoneForWhatsApp(patient.data.phone)) {
+                                  e.preventDefault();
+                                }
+                              }}
+                            >
+                              <Phone className="w-4 h-4" />
+                              <span>{patient.data.phone}</span>
+                            </a>
+                          ) : (
+                            '—'
+                          )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <EditableCell
-                            value={patient.data.phone}
-                            patientId={patient.id}
-                            field="phone"
-                            onSave={handleFieldSave}
-                            canEdit={canEditPatient(patient)}
-                            isPhone={true}
-                            className=""
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <EditableCell
-                            value={patient.data.address}
-                            patientId={patient.id}
-                            field="address"
-                            onSave={handleFieldSave}
-                            canEdit={canEditPatient(patient)}
-                            className="text-gray-900"
-                          />
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <EditableCell
-                            value={patient.data.reason}
-                            patientId={patient.id}
-                            field="reason"
-                            onSave={handleFieldSave}
-                            canEdit={canEditPatient(patient)}
-                            className="text-gray-900 max-w-[130px] truncate"
-                          />
-                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.address || '—'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{patient.data.reason || '—'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {canEditPatient(patient) ? (
                             <span className="text-emerald-600 font-medium">(Siz)</span>
@@ -773,21 +383,7 @@ export const PatientsView: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                           <div className="relative inline-block text-left">
                             <button
-                              onClick={(e) => {
-                                const button = e.currentTarget;
-                                const isOpening = openMenuId !== patient.id;
-                                if (isOpening) {
-                                  const rect = button.getBoundingClientRect();
-                                  setMenuPosition({
-                                    top: rect.bottom + 8,
-                                    right: window.innerWidth - rect.right,
-                                  });
-                                  setOpenMenuId(patient.id);
-                                } else {
-                                  setOpenMenuId(null);
-                                  setMenuPosition(null);
-                                }
-                              }}
+                              onClick={() => setOpenMenuId((prev) => (prev === patient.id ? null : patient.id))}
                               className="inline-flex items-center p-2 rounded-md hover:bg-gray-100"
                               aria-haspopup="true"
                               aria-expanded={openMenuId === patient.id}
@@ -795,21 +391,17 @@ export const PatientsView: React.FC = () => {
                               <MoreHorizontal className="w-5 h-5" />
                             </button>
 
-                            {openMenuId === patient.id && menuPosition && (
+                            {openMenuId === patient.id && (
                               <>
                                 {/* Backdrop to close on outside click */}
-                                <div className="fixed inset-0 z-10" onClick={() => { setOpenMenuId(null); setMenuPosition(null); }}></div>
-                                <div 
-                                  className="fixed w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20"
-                                  style={{ top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }}
-                                >
+                                <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)}></div>
+                                <div className="absolute right-0 mt-2 w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
                                   <div className="py-1 flex flex-col">
                                     <button
                                       onClick={() => {
                                         if (!canEditPatient(patient)) {
                                           alert('Bu hasta kaydını sadece oluşturan kişi düzenleyebilir');
                                           setOpenMenuId(null);
-                                          setMenuPosition(null);
                                           return;
                                         }
                                         setEditFull({
@@ -822,7 +414,6 @@ export const PatientsView: React.FC = () => {
                                           notes: patient.data.notes || '',
                                         });
                                         setOpenMenuId(null);
-                                        setMenuPosition(null);
                                       }}
                                       className={`w-full px-4 py-2 text-left text-sm flex items-center ${
                                         canEditPatient(patient) 
@@ -838,11 +429,9 @@ export const PatientsView: React.FC = () => {
                                         if (!canEditPatient(patient)) {
                                           alert('Bu hasta kaydını sadece oluşturan kişi silebilir');
                                           setOpenMenuId(null);
-                                          setMenuPosition(null);
                                           return;
                                         }
                                         setOpenMenuId(null);
-                                        setMenuPosition(null);
                                         if (confirm('Bu hastayı silmek istediğinize emin misiniz?')) {
                                           await deletePatient(patient.id);
                                         }
@@ -884,14 +473,7 @@ export const PatientsView: React.FC = () => {
                             {patient.patient_number || '—'}
                           </span>
                         </div>
-                        <EditableCell
-                          value={patient.data.name}
-                          patientId={patient.id}
-                          field="name"
-                          onSave={handleFieldSave}
-                          canEdit={canEditPatient(patient)}
-                          className="text-lg font-medium text-gray-900"
-                        />
+                        <h3 className="text-lg font-medium text-gray-900">{patient.data.name || '—'}</h3>
                         <p className="text-sm text-gray-500 flex items-center">
                           <Calendar className="w-4 h-4 mr-1" />
                           {formatDate(patient.created_at)}
@@ -900,21 +482,7 @@ export const PatientsView: React.FC = () => {
                     </div>
                     <div className="relative">
                       <button
-                        onClick={(e) => {
-                          const button = e.currentTarget;
-                          const isOpening = openMenuId !== patient.id;
-                          if (isOpening) {
-                            const rect = button.getBoundingClientRect();
-                            setMenuPosition({
-                              top: rect.bottom + 8,
-                              right: window.innerWidth - rect.right,
-                            });
-                            setOpenMenuId(patient.id);
-                          } else {
-                            setOpenMenuId(null);
-                            setMenuPosition(null);
-                          }
-                        }}
+                        onClick={() => setOpenMenuId((prev) => (prev === patient.id ? null : patient.id))}
                         className="inline-flex items-center p-2 rounded-md hover:bg-gray-100"
                         aria-haspopup="true"
                         aria-expanded={openMenuId === patient.id}
@@ -922,20 +490,16 @@ export const PatientsView: React.FC = () => {
                         <MoreHorizontal className="w-5 h-5" />
                       </button>
 
-                      {openMenuId === patient.id && menuPosition && (
+                      {openMenuId === patient.id && (
                         <>
-                          <div className="fixed inset-0 z-10" onClick={() => { setOpenMenuId(null); setMenuPosition(null); }}></div>
-                          <div 
-                            className="fixed w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20"
-                            style={{ top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }}
-                          >
+                          <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)}></div>
+                          <div className="absolute right-0 mt-2 w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
                             <div className="py-1 flex flex-col">
                               <button
                                 onClick={() => {
                                   if (!canEditPatient(patient)) {
                                     alert('Bu hasta kaydını sadece oluşturan kişi düzenleyebilir');
                                     setOpenMenuId(null);
-                                    setMenuPosition(null);
                                     return;
                                   }
                                   setEditFull({
@@ -948,7 +512,6 @@ export const PatientsView: React.FC = () => {
                                     notes: patient.data.notes || '',
                                   });
                                   setOpenMenuId(null);
-                                  setMenuPosition(null);
                                 }}
                                 className={`w-full px-4 py-2 text-left text-sm flex items-center ${
                                   canEditPatient(patient) 
@@ -964,11 +527,9 @@ export const PatientsView: React.FC = () => {
                                   if (!canEditPatient(patient)) {
                                     alert('Bu hasta kaydını sadece oluşturan kişi silebilir');
                                     setOpenMenuId(null);
-                                    setMenuPosition(null);
                                     return;
                                   }
                                   setOpenMenuId(null);
-                                  setMenuPosition(null);
                                   if (confirm('Bu hastayı silmek istediğinize emin misiniz?')) {
                                     await deletePatient(patient.id);
                                   }
@@ -998,51 +559,42 @@ export const PatientsView: React.FC = () => {
                         <span className="text-gray-600">{patient.created_by_name || 'Bilinmiyor'}</span>
                       )}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-gray-700">TC / Pasaport:</span>
-                      <EditableCell
-                        value={patient.data.national_id}
-                        patientId={patient.id}
-                        field="national_id"
-                        onSave={handleFieldSave}
-                        canEdit={canEditPatient(patient)}
-                        className="text-gray-900 flex-1"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Phone className="w-4 h-4 text-gray-400" />
-                      <EditableCell
-                        value={patient.data.phone}
-                        patientId={patient.id}
-                        field="phone"
-                        onSave={handleFieldSave}
-                        canEdit={canEditPatient(patient)}
-                        isPhone={true}
-                        className="flex-1"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-gray-700">Adres:</span>
-                      <EditableCell
-                        value={patient.data.address}
-                        patientId={patient.id}
-                        field="address"
-                        onSave={handleFieldSave}
-                        canEdit={canEditPatient(patient)}
-                        className="text-gray-900 break-words flex-1"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-gray-700">Başvuru nedeni:</span>
-                      <EditableCell
-                        value={patient.data.reason}
-                        patientId={patient.id}
-                        field="reason"
-                        onSave={handleFieldSave}
-                        canEdit={canEditPatient(patient)}
-                        className="text-gray-900 flex-1 truncate"
-                      />
-                    </div>
+                    {patient.data.national_id && (
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-gray-700">TC / Pasaport:</span>
+                        <span className="text-gray-900">{patient.data.national_id}</span>
+                      </div>
+                    )}
+                    {patient.data.phone && (
+                      <div className="flex items-center space-x-2">
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        <a
+                          href={formatPhoneForWhatsApp(patient.data.phone) || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-600 hover:text-emerald-700 hover:underline"
+                          onClick={(e) => {
+                            if (!formatPhoneForWhatsApp(patient.data.phone)) {
+                              e.preventDefault();
+                            }
+                          }}
+                        >
+                          {patient.data.phone}
+                        </a>
+                      </div>
+                    )}
+                    {patient.data.address && (
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-gray-700">Adres:</span>
+                        <span className="text-gray-900 break-words">{patient.data.address}</span>
+                      </div>
+                    )}
+                    {patient.data.reason && (
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-gray-700">Başvuru nedeni:</span>
+                        <span className="text-gray-900 break-words">{patient.data.reason}</span>
+                      </div>
+                    )}
                     {patient.data.notes && (
                       <div className="flex items-start space-x-2">
                         <span className="font-medium text-gray-700">Notlar:</span>
@@ -1144,16 +696,11 @@ export const PatientsView: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-                <PhoneInput
-                  defaultCountry="tr"
+                <input
+                  type="text"
                   value={editFull.phone}
-                  onChange={(phone) => setEditFull({ ...editFull, phone })}
-                  className="w-full group"
-                  inputClassName="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500"
-                  countrySelectorStyleProps={{
-                    buttonClassName: "border-gray-300 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500 transition-all",
-                    flagStyle: { paddingLeft: '8px' }
-                  }}
+                  onChange={(e) => setEditFull({ ...editFull, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
               </div>
               <div>
