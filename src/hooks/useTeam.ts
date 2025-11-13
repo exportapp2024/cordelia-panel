@@ -20,16 +20,33 @@ export interface TeamInvitation {
   invited_email: string;
   status: string;
   created_at: string;
-  users: {
+  users?: {
     id: string;
     name: string;
+    email: string;
+  };
+  invited_user?: {
+    id?: string;
+    name: string | null;
     email: string;
   };
 }
 
 export interface TeamInfo {
-  team_owner_id: string;
-  users: {
+  team_owner_id?: string;
+  ownedTeams?: Array<{
+    id: string;
+    owner_id: string;
+    name: string | null;
+    created_at: string;
+  }>;
+  memberTeams?: Array<{
+    id: string;
+    owner_id: string;
+    name: string | null;
+    created_at: string;
+  }>;
+  users?: {
     id: string;
     name: string;
     email: string;
@@ -39,6 +56,7 @@ export interface TeamInfo {
 export const useTeam = (userId: string | null) => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<TeamInvitation[]>([]);
+  const [sentInvitations, setSentInvitations] = useState<TeamInvitation[]>([]);
   const [teamInfo, setTeamInfo] = useState<TeamInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +85,7 @@ export const useTeam = (userId: string | null) => {
     }
   };
 
-  // Get pending invitations for user
+  // Get pending invitations for user (received)
   const getPendingInvitations = async () => {
     if (!userId) return;
     
@@ -88,6 +106,30 @@ export const useTeam = (userId: string | null) => {
       }
     } catch (err: any) {
       console.error('Error getting invitations:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get sent invitations by team owner (only pending)
+  const getSentInvitations = async () => {
+    if (!userId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(buildApiUrl(`calendar/team/invitations/sent/${userId}?status=pending`));
+      const data = await response.json();
+      
+      if (data.success) {
+        setSentInvitations(data.invitations);
+      } else {
+        throw new Error(data.error || 'Failed to get sent invitations');
+      }
+    } catch (err: any) {
+      console.error('Error getting sent invitations:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -140,8 +182,9 @@ export const useTeam = (userId: string | null) => {
       const data = await response.json();
       
       if (data.success) {
-        // Refresh team members
+        // Refresh team members and sent invitations
         await getTeamMembers();
+        await getSentInvitations();
         return data.invitation;
       } else {
         throw new Error(data.error || 'Failed to send invitation');
@@ -178,7 +221,10 @@ export const useTeam = (userId: string | null) => {
       if (data.success) {
         // Refresh invitations and team info
         await getPendingInvitations();
+        // Small delay to ensure backend has processed
+        await new Promise(resolve => setTimeout(resolve, 300));
         await getTeamInfo();
+        await getTeamMembers(); // Also refresh team members to update UI
         return data.teamInfo;
       } else {
         throw new Error(data.error || 'Failed to accept invitation');
@@ -286,12 +332,89 @@ export const useTeam = (userId: string | null) => {
     }
   };
 
+  // Create a new team
+  const createTeam = async (teamName: string) => {
+    if (!userId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(buildApiUrl('calendar/team/create'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          teamName: teamName.trim() || null,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh team data
+        await getTeamMembers();
+        await getTeamInfo();
+        return data.team;
+      } else {
+        throw new Error(data.error || 'Failed to create team');
+      }
+    } catch (err: any) {
+      console.error('Error creating team:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update team name
+  const updateTeamName = async (teamName: string) => {
+    if (!userId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(buildApiUrl('calendar/team/update-name'), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          teamName: teamName.trim() || null,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh team data
+        await getTeamMembers();
+        await getTeamInfo();
+        return data.team;
+      } else {
+        throw new Error(data.error || 'Failed to update team name');
+      }
+    } catch (err: any) {
+      console.error('Error updating team name:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Initialize data on mount
   useEffect(() => {
     if (userId) {
       getTeamMembers();
       getPendingInvitations();
       getTeamInfo();
+      getSentInvitations();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -299,11 +422,13 @@ export const useTeam = (userId: string | null) => {
   return {
     teamMembers,
     pendingInvitations,
+    sentInvitations,
     teamInfo,
     loading,
     error,
     getTeamMembers,
     getPendingInvitations,
+    getSentInvitations,
     getTeamInfo,
     inviteTeamMember,
     acceptInvitation,
@@ -311,5 +436,7 @@ export const useTeam = (userId: string | null) => {
     removeTeamMember,
     disconnectCalendar,
     checkIsTeamOwner,
+    createTeam,
+    updateTeamName,
   };
 };

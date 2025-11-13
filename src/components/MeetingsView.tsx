@@ -329,7 +329,7 @@ export const MeetingsView: React.FC = () => {
           description: e.description || '',
           start: { dateTime: e.start_time },
           end: { dateTime: e.end_time },
-          createdBy: e.user_id,
+          createdBy: e.created_by || e.user_id, // Use created_by from backend, fallback to user_id
         }));
         setEvents(mapped);
       } else {
