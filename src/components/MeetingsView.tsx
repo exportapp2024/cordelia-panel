@@ -70,6 +70,7 @@ export const MeetingsView: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [syncingEventId, setSyncingEventId] = useState<string | null>(null);
   const [deepLinkParams, setDeepLinkParams] = useState<{ date?: string; appointmentId?: string; action?: string } | null>(null);
+  const [loadedDateRange, setLoadedDateRange] = useState<{ min: Date; max: Date } | null>(null);
 
   // Convert CalendarEvent to react-big-calendar Event format
   const convertToRBCEvent = (event: CalendarEvent): CalendarEventRBC => {
@@ -88,16 +89,39 @@ export const MeetingsView: React.FC = () => {
     };
   };
 
+  // Helper function to check and load events if needed for a date
+  const checkAndLoadEventsForDate = useCallback((date: Date) => {
+    if (loadedDateRange) {
+      const newDate = new Date(date);
+      const oneMonthBefore = new Date(newDate);
+      oneMonthBefore.setMonth(oneMonthBefore.getMonth() - 1);
+      const oneMonthAfter = new Date(newDate);
+      oneMonthAfter.setMonth(oneMonthAfter.getMonth() + 1);
+      
+      // Check if new date is outside the loaded range
+      const bufferDays = 7; // 7 day buffer to avoid frequent reloads
+      const minWithBuffer = new Date(loadedDateRange.min.getTime() + bufferDays * 24 * 60 * 60 * 1000);
+      const maxWithBuffer = new Date(loadedDateRange.max.getTime() - bufferDays * 24 * 60 * 60 * 1000);
+      
+      if (newDate < minWithBuffer || newDate > maxWithBuffer) {
+        // Load events for the new date range
+        fetchEvents(oneMonthBefore.toISOString(), oneMonthAfter.toISOString());
+      }
+    }
+  }, [loadedDateRange, fetchEvents]);
+
   // Navigate to previous week
   const handlePreviousWeek = () => {
     const newDate = moment(currentDate).subtract(1, 'week').toDate();
     setCurrentDate(newDate);
+    checkAndLoadEventsForDate(newDate);
   };
 
   // Navigate to next week
   const handleNextWeek = () => {
     const newDate = moment(currentDate).add(1, 'week').toDate();
     setCurrentDate(newDate);
+    checkAndLoadEventsForDate(newDate);
   };
 
   // Navigate to today
@@ -302,21 +326,30 @@ export const MeetingsView: React.FC = () => {
   // Connection checks removed (local calendar always available)
 
   // Get calendar events
-  const fetchEvents = useCallback(async () => {
+  const fetchEvents = useCallback(async (customTimeMin?: string, customTimeMax?: string) => {
     if (!user?.id) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      // Get events for 3 months before and 3 months after current date
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-      const threeMonthsLater = new Date();
-      threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+      let timeMin: string;
+      let timeMax: string;
       
-      const timeMin = threeMonthsAgo.toISOString();
-      const timeMax = threeMonthsLater.toISOString();
+      if (customTimeMin && customTimeMax) {
+        // Use provided date range
+        timeMin = customTimeMin;
+        timeMax = customTimeMax;
+      } else {
+        // Default: Get events for 3 months before and 3 months after current date
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        const threeMonthsLater = new Date();
+        threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+        
+        timeMin = threeMonthsAgo.toISOString();
+        timeMax = threeMonthsLater.toISOString();
+      }
       
       const url = buildApiUrl(`calendar/events/${user.id}?timeMin=${timeMin}&timeMax=${timeMax}`);
       const response = await fetch(url);
@@ -332,6 +365,11 @@ export const MeetingsView: React.FC = () => {
           createdBy: e.created_by || e.user_id, // Use created_by from backend, fallback to user_id
         }));
         setEvents(mapped);
+        // Save the loaded date range
+        setLoadedDateRange({
+          min: new Date(timeMin),
+          max: new Date(timeMax)
+        });
       } else {
         throw new Error(data.error || 'Failed to fetch events');
       }
@@ -418,30 +456,84 @@ export const MeetingsView: React.FC = () => {
 
   // After events are loaded, if deep-link requests edit, open the details modal for the appointment
   useEffect(() => {
-    if (!deepLinkParams) return;
+    if (!deepLinkParams || !user?.id) return;
     const { appointmentId, action } = deepLinkParams;
-    if (action === 'edit' && appointmentId && events.length > 0) {
-      const target = events.find(e => String(e.id) === String(appointmentId));
-      if (target) {
-        setSelectedEvent(target);
-        // Optionally clean URL so modal doesn't reopen on refresh
+    
+    if (action === 'edit' && appointmentId) {
+      const handleDeepLinkAppointment = async () => {
         try {
-          const url = new URL(window.location.href);
-          url.searchParams.delete('action');
-          url.searchParams.delete('appointmentId');
-          window.history.replaceState({}, document.title, url.toString());
-        } catch {
-          // noop
+          // First, try to find the appointment in the current events array
+          let target = events.find(e => String(e.id) === String(appointmentId));
+          
+          // If not found, fetch it directly by ID
+          if (!target) {
+            const response = await fetch(buildApiUrl(`calendar/events/${user.id}/${appointmentId}`));
+            const data = await response.json();
+            
+            if (data.success && data.event) {
+              const fetchedEvent: CalendarEvent = {
+                id: data.event.id,
+                summary: data.event.title,
+                description: data.event.description || '',
+                start: { dateTime: data.event.start_time },
+                end: { dateTime: data.event.end_time },
+                createdBy: data.event.created_by || data.event.user_id,
+              };
+              
+              // Calculate dynamic date range based on appointment date
+              const appointmentDate = new Date(data.event.start_time);
+              const now = new Date();
+              
+              let timeMin: Date;
+              let timeMax: Date;
+              
+              if (appointmentDate > now) {
+                // Future appointment: from now to appointment date + 1 month buffer
+                timeMin = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 1 month before now
+                timeMax = new Date(appointmentDate.getTime() + 30 * 24 * 60 * 60 * 1000); // 1 month after appointment
+              } else {
+                // Past appointment: appointment date ± 1 month
+                timeMin = new Date(appointmentDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+                timeMax = new Date(appointmentDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+              }
+              
+              // Fetch events with dynamic range
+              await fetchEvents(timeMin.toISOString(), timeMax.toISOString());
+              
+              // After fetchEvents completes, the appointment should be in the events array
+              // Wait a bit for state to update, then find it
+              target = fetchedEvent;
+            } else {
+              throw new Error(data.error || 'Randevu bulunamadı');
+            }
+          }
+          
+          if (target) {
+            setSelectedEvent(target);
+            // Optionally clean URL so modal doesn't reopen on refresh
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('action');
+              url.searchParams.delete('appointmentId');
+              window.history.replaceState({}, document.title, url.toString());
+            } catch {
+              // noop
+            }
+          } else {
+            setError('Randevu bulunamadı veya erişim yetkiniz yok.');
+          }
+        } catch (error: unknown) {
+          const errorMsg = error instanceof Error ? error.message : 'Randevu bulunamadı veya erişim yetkiniz yok.';
+          setError(errorMsg);
+        } finally {
+          // Clear so it doesn't retrigger
+          setDeepLinkParams(null);
         }
-        // Clear so it doesn't retrigger
-        setDeepLinkParams(null);
-      } else {
-        // Not found: show message once
-        setError('Randevu bulunamadı veya erişim yetkiniz yok.');
-        setDeepLinkParams(null);
-      }
+      };
+      
+      handleDeepLinkAppointment();
     }
-  }, [events, deepLinkParams]);
+  }, [events, deepLinkParams, user?.id, fetchEvents]);
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -596,7 +688,10 @@ export const MeetingsView: React.FC = () => {
               views={[Views.WEEK]}
               culture="tr"
               date={currentDate}
-              onNavigate={(date) => setCurrentDate(date)}
+              onNavigate={(date) => {
+                setCurrentDate(date);
+                checkAndLoadEventsForDate(date);
+              }}
               onSelectSlot={handleSelectSlot}
               onSelectEvent={(ev) => handleSelectEvent(ev as CalendarEventRBC)}
               onEventDrop={(args) => handleEventDrop({
