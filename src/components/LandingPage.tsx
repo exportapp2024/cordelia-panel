@@ -154,7 +154,7 @@ export const LandingPage: React.FC = () => {
                 <br />
                 <span className="text-gray-800 font-semibold">Hepsini AI asistana devredin.</span>
                 <br />
-                Siz hastanıza kulak verin, veriyi Cordelia'ya halletsin.
+                Siz hastanıza kulak verin, veriyi Cordelia halletsin.
               </motion.p>
 
               <motion.div

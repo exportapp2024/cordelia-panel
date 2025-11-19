@@ -24,6 +24,7 @@ import {
 } from '../types/medicalFile';
 import DocumentGenerationModal from './DocumentGenerationModal';
 import { EnhancedChatWidget } from './EnhancedChatWidget';
+import { PhoneInputField } from './PhoneInputField';
 
 const PatientMedicalFileView: React.FC = () => {
   const { patientId } = useParams<{ patientId: string }>();
@@ -198,13 +199,23 @@ const PatientMedicalFileView: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">
                     {field.label}
                   </label>
-                  <input
-                    type="text"
-                    value={medicalFileData.patientInfo[field.key as keyof typeof medicalFileData.patientInfo] || ''}
-                    onChange={(e) => handleFieldChange('patientInfo', field.key, e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    disabled={isReadOnly}
-                  />
+                  {field.key === 'phoneNumber' ? (
+                    <PhoneInputField
+                      value={medicalFileData.patientInfo.phoneNumber || ''}
+                      onChange={(phone) => handleFieldChange('patientInfo', 'phoneNumber', phone)}
+                      disabled={isReadOnly}
+                      className="w-full group"
+                      inputClassName="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={medicalFileData.patientInfo[field.key as keyof typeof medicalFileData.patientInfo] || ''}
+                      onChange={(e) => handleFieldChange('patientInfo', field.key, e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      disabled={isReadOnly}
+                    />
+                  )}
                 </div>
               ))}
             </div>

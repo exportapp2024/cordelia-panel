@@ -143,8 +143,8 @@ export const ContactPage: React.FC = () => {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Email</h3>
                 <p className="text-gray-600 mb-2">Bize email gönderin</p>
-                <a href="mailto:destek@cordelia.com" className="text-emerald-600 hover:text-emerald-700 font-medium">
-                  destek@cordelia.com
+                <a href="mailto:info@cordelia.app" className="text-emerald-600 hover:text-emerald-700 font-medium">
+                  info@cordelia.app
                 </a>
               </motion.div>
 
