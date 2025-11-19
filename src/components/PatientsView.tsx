@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePatients } from '../hooks/usePatients';
 import { useAuth } from '../hooks/useAuth';
 import { Patient } from '../types';
-import { PhoneInput } from 'react-international-phone';
-import 'react-international-phone/style.css';
+import { PhoneInputField } from './PhoneInputField';
 
 // Helper function to format phone number for WhatsApp
 const formatPhoneForWhatsApp = (phone: string | null | undefined): string | null => {
@@ -209,20 +208,14 @@ const EditableCell: React.FC<EditableCellProps> = ({
   };
 
   if (isEditing) {
-    // Use PhoneInput for phone field
+    // Use PhoneInputField for phone field
     if (isPhone) {
       return (
         <span ref={phoneInputContainerRef} className="relative inline-block" style={{ margin: '0', padding: '0', minWidth: '200px' }}>
-          <PhoneInput
-            defaultCountry="tr"
+          <PhoneInputField
             value={draftValue}
             onChange={(phone) => setDraftValue(phone)}
-            className="group"
-            inputClassName="px-1 border-0 border-b border-emerald-500 rounded-none focus:outline-none focus:ring-0 focus:border-emerald-500 text-sm bg-transparent group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500"
-            countrySelectorStyleProps={{
-              buttonClassName: "border-gray-300 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500 transition-all",
-              flagStyle: { paddingLeft: '8px' }
-            }}
+            variant="inline"
             onBlur={handleSave}
             disabled={isSaving}
             inputProps={{
@@ -460,16 +453,9 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Telefon
             </label>
-            <PhoneInput
-              defaultCountry="tr"
+            <PhoneInputField
               value={formData.phone}
               onChange={(phone) => setFormData({ ...formData, phone })}
-              className="w-full group"
-              inputClassName="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500"
-              countrySelectorStyleProps={{
-                buttonClassName: "border-gray-300 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500 transition-all",
-                flagStyle: { paddingLeft: '8px' }
-              }}
               disabled={loading}
             />
           </div>
@@ -1144,16 +1130,9 @@ export const PatientsView: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-                <PhoneInput
-                  defaultCountry="tr"
+                <PhoneInputField
                   value={editFull.phone}
                   onChange={(phone) => setEditFull({ ...editFull, phone })}
-                  className="w-full group"
-                  inputClassName="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500"
-                  countrySelectorStyleProps={{
-                    buttonClassName: "border-gray-300 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500 transition-all",
-                    flagStyle: { paddingLeft: '8px' }
-                  }}
                 />
               </div>
               <div>
