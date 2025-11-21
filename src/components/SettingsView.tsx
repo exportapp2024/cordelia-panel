@@ -3,9 +3,10 @@ import { User, Shield, LogOut } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { TeamManagementSection } from './TeamManagementSection';
+import { buildApiUrl } from '../lib/api';
 
 export const SettingsView: React.FC = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, updateEmail } = useAuth();
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -19,6 +20,17 @@ export const SettingsView: React.FC = () => {
     newPassword: '',
     confirmPassword: ''
   });
+  const [deletePassword, setDeletePassword] = useState('');
+
+  // Update profile data when user changes
+  React.useEffect(() => {
+    if (user) {
+      setProfileData({
+        name: user.name || '',
+        email: user.email || '',
+      });
+    }
+  }, [user]);
 
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -27,10 +39,49 @@ export const SettingsView: React.FC = () => {
     setMessage(null);
 
     try {
-      await updateProfile({
-        name: profileData.name,
-      });
-      setMessage('Profil başarıyla güncellendi!');
+      // Check if email has changed
+      const emailChanged = profileData.email !== user?.email;
+      const nameChanged = profileData.name !== user?.name;
+
+      if (!emailChanged && !nameChanged) {
+        setMessage('Herhangi bir değişiklik yapılmadı.');
+        return;
+      }
+
+      // Update name first if changed (name update doesn't require verification)
+      if (nameChanged) {
+        await updateProfile({
+          name: profileData.name,
+        });
+      }
+
+      // Update email if changed (this requires verification flow)
+      if (emailChanged) {
+        await updateEmail(profileData.email);
+        if (nameChanged) {
+          setMessage(`✓ Profil Güncellendi!
+
+• İsim başarıyla güncellendi.
+• Email değişikliği başlatıldı.
+
+Doğrulama linkleri gönderildi:
+• Mevcut email: ${user?.email}
+• Yeni email: ${profileData.email}
+
+Her iki email adresinizdeki doğrulama linklerine tıklamanız gerekmektedir.`);
+        } else {
+          setMessage(`✓ Email Değişikliği Başlatıldı!
+
+Doğrulama linkleri gönderildi:
+• Mevcut email: ${user?.email}
+• Yeni email: ${profileData.email}
+
+Her iki email adresinizdeki doğrulama linklerine tıklamanız gerekmektedir.`);
+        }
+      } else {
+        // Only name was changed
+        setMessage('Profil başarıyla güncellendi!');
+      }
     } catch (error: any) {
       setMessage(`Hata: ${error.message}`);
     } finally {
@@ -69,7 +120,8 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleDeleteAccount = async () => {
-    if (!confirm('Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!')) {
+    if (!deletePassword) {
+      setMessage('Hata: Şifre gereklidir');
       return;
     }
 
@@ -77,31 +129,32 @@ export const SettingsView: React.FC = () => {
     setMessage(null);
 
     try {
-      // Delete all user data from database
-      const { error: patientsError } = await supabase
-        .from('patients')
-        .delete()
-        .eq('user_id', user?.id);
+      const response = await fetch(buildApiUrl(`users/${user?.id}`), {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          password: deletePassword
+        })
+      });
 
-      if (patientsError) throw patientsError;
+      const data = await response.json();
 
+      if (!response.ok) {
+        throw new Error(data.error || 'Hesap silinirken bir hata oluştu');
+      }
 
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', user?.id);
-
-      if (profileError) throw profileError;
-
-      // Delete auth user
-      const { error: authError } = await supabase.auth.admin.deleteUser(user?.id || '');
-
-      if (authError) throw authError;
-
-      setMessage('Hesap başarıyla silindi');
+      setMessage('Hesap başarıyla silindi. Yönlendiriliyorsunuz...');
+      setShowDeleteModal(false);
+      setDeletePassword('');
+      
+      // Sign out and redirect to landing page
+      await supabase.auth.signOut();
+      
       setTimeout(() => {
         window.location.href = '/';
-      }, 2000);
+      }, 1500);
     } catch (error: any) {
       setMessage(`Hata: ${error.message}`);
     } finally {
@@ -126,12 +179,14 @@ export const SettingsView: React.FC = () => {
         
         <form onSubmit={handleProfileUpdate} className="space-y-4">
           {message && (
-            <div className={`p-3 rounded-lg ${
+            <div className={`p-4 rounded-lg border-2 ${
               message.startsWith('Hata') 
-                ? 'bg-red-50 border border-red-200 text-red-600' 
-                : 'bg-green-50 border border-green-200 text-green-600'
+                ? 'bg-red-50 border-red-300 text-red-700' 
+                : message.startsWith('✓')
+                ? 'bg-blue-50 border-blue-300 text-blue-800'
+                : 'bg-green-50 border-green-300 text-green-700'
             }`}>
-              <p className="text-sm">{message}</p>
+              <p className="text-sm font-medium whitespace-pre-line">{message}</p>
             </div>
           )}
 
@@ -155,10 +210,12 @@ export const SettingsView: React.FC = () => {
             <input
               type="email"
               value={profileData.email}
+              onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              disabled
+              required
             />
-            <p className="text-xs text-gray-500 mt-1">Email adresi değiştirilemez</p>
+            <p className="text-xs text-gray-500 mt-1">Mevcut email: {user?.email}</p>
+            <p className="text-xs text-gray-500 mt-1">Email değiştirirseniz, hem eski hem yeni adresinize doğrulama linki gönderilecektir.</p>
           </div>
           
           
@@ -277,20 +334,37 @@ export const SettingsView: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4 text-red-900">Hesabı Sil</h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               Bu işlem geri alınamaz! Hesabınız ve tüm verileriniz kalıcı olarak silinecek.
             </p>
             
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Devam etmek için şifrenizi girin:
+              </label>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                placeholder="Şifreniz"
+                required
+              />
+            </div>
+            
             <div className="flex space-x-3">
               <button
-                onClick={() => setShowDeleteModal(false)}
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletePassword('');
+                }}
                 className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
               >
                 İptal
               </button>
               <button
                 onClick={handleDeleteAccount}
-                disabled={loading}
+                disabled={loading || !deletePassword}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
               >
                 {loading ? 'Siliniyor...' : 'Hesabı Sil'}
