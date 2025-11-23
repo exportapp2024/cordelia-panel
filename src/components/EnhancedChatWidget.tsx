@@ -33,6 +33,8 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
   >([]);
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const chatPanelRef = React.useRef<HTMLDivElement | null>(null);
+  const floatingButtonRef = React.useRef<HTMLButtonElement | null>(null);
 
   const renderMarkdownHtml = React.useCallback((raw: string): string => {
     const escapeHtml = (s: string) =>
@@ -106,6 +108,8 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
   React.useEffect(() => {
     if (open) {
       loadHistory();
+      // Auto-focus input when chatbot opens
+      textareaRef.current?.focus();
     }
   }, [open, loadHistory]);
 
@@ -113,6 +117,34 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
     // Auto-scroll to bottom on new messages
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Close chatbot when clicking outside
+  React.useEffect(() => {
+    if (!open) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      
+      // Don't close if clicking inside the chat panel or on the floating button
+      if (
+        chatPanelRef.current?.contains(target) ||
+        floatingButtonRef.current?.contains(target)
+      ) {
+        return;
+      }
+      
+      // Close the chatbot
+      setOpen(false);
+    };
+
+    // Add event listener
+    document.addEventListener("mousedown", handleClickOutside);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
 
   const sendMessage = async () => {
     if (!user || !input.trim()) return;
@@ -175,6 +207,7 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
     <>
       {/* Floating Button */}
       <button
+        ref={floatingButtonRef}
         onClick={onToggle}
         className="fixed bottom-6 right-6 z-40 inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-600 text-white shadow-lg hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
         aria-label="Chatbotu aç"
@@ -188,7 +221,10 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
 
       {/* Panel */}
       {open && (
-        <div className="fixed inset-0 md:inset-auto md:bottom-24 md:right-6 z-50 md:z-40 w-full md:w-96 md:max-w-[95vw] bg-white md:rounded-xl md:shadow-2xl md:border md:border-gray-200 overflow-hidden flex flex-col h-full md:h-[560px]">
+        <div 
+          ref={chatPanelRef}
+          className="fixed inset-0 md:inset-auto md:bottom-24 md:right-6 z-50 md:z-40 w-full md:w-96 md:max-w-[95vw] bg-white md:rounded-xl md:shadow-2xl md:border md:border-gray-200 overflow-hidden flex flex-col h-full md:h-[560px]"
+        >
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">
