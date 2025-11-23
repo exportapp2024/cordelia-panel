@@ -119,23 +119,6 @@ export const TeamManagementSection: React.FC = () => {
     fetchTeamDetails();
   }, [user?.id, teamMembers, teamInfo]);
 
-  // Auto-refresh team data periodically (every 5 seconds) to catch updates from other users
-  useEffect(() => {
-    if (!user?.id) return;
-    
-    const refreshInterval = setInterval(() => {
-      if (isTeamOwner) {
-        // If user is team owner, refresh members and sent invitations
-        getTeamMembers();
-        getSentInvitations();
-      } else if (isTeamMember) {
-        // If user is team member, refresh team info
-        getTeamInfo();
-      }
-    }, 5000); // Refresh every 5 seconds
-
-    return () => clearInterval(refreshInterval);
-  }, [user?.id, isTeamOwner, isTeamMember, getTeamMembers, getSentInvitations, getTeamInfo]);
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
