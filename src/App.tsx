@@ -8,6 +8,7 @@ import { ContactPage } from './components/ContactPage';
 import { AuthForm } from './components/AuthForm';
 import { Dashboard } from './components/Dashboard';
 import { EmailVerificationView } from './components/EmailVerificationView';
+import { EmailChangeVerificationView } from './components/EmailChangeVerificationView';
 import { ResetPasswordView } from './components/ResetPasswordView';
 import PatientMedicalFileView from './components/PatientMedicalFileView';
 import { useAuth } from './hooks/useAuth';
@@ -35,10 +36,10 @@ function App() {
     checkEmailVerification();
   }, [user]);
 
-  // Handle password recovery callback
+  // Handle password recovery and email change callbacks
   React.useEffect(() => {
-    const handlePasswordRecovery = async () => {
-      // Check URL hash for password recovery token
+    const handleAuthCallbacks = async () => {
+      // Check URL hash for auth tokens
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get('access_token');
       const type = hashParams.get('type');
@@ -47,14 +48,19 @@ function App() {
         // Token is in URL, user will be handled by ResetPasswordView
         // Just ensure we're on the right route
         if (window.location.pathname !== '/reset-password') {
-          window.history.replaceState(null, '', '/reset-password');
+          window.location.href = '/reset-password' + window.location.hash;
+        }
+      } else if (accessToken && type === 'email_change') {
+        // Email change confirmation - redirect to verification page
+        if (window.location.pathname !== '/email-change-verification') {
+          window.location.href = '/email-change-verification' + window.location.hash;
         }
       }
     };
 
-    handlePasswordRecovery();
+    handleAuthCallbacks();
 
-    // Listen for PASSWORD_RECOVERY event
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       async (event, _session) => {
@@ -63,6 +69,10 @@ function App() {
           if (window.location.pathname !== '/reset-password') {
             window.location.href = '/reset-password';
           }
+        } else if (event === 'USER_UPDATED') {
+          // User data updated (including email)
+          // Don't reload - useAuth hook will handle the update
+          console.log('User updated event received');
         }
       }
     );
@@ -127,6 +137,10 @@ function App() {
         <Route
           path="/reset-password"
           element={<ResetPasswordView />}
+        />
+        <Route
+          path="/email-change-verification"
+          element={<EmailChangeVerificationView />}
         />
         <Route
           path="/dashboard"

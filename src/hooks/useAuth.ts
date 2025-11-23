@@ -45,11 +45,16 @@ export const useAuth = () => {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         if (!mounted) return;
 
-        
-        if (session?.user) {
+        console.log('Auth state change:', event, session?.user?.email);
+
+        // Handle auth state changes
+        // Note: Email sync is now handled automatically by database trigger
+        if (event === 'USER_UPDATED' && session?.user) {
+          await loadUserProfile(session.user);
+        } else if (session?.user) {
           await loadUserProfile(session.user);
         } else {
           setUser(null);
@@ -143,13 +148,28 @@ export const useAuth = () => {
     if (!user) throw new Error('No user logged in');
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id);
+      // Update user metadata in auth.users
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          name: updates.name,
+        }
+      });
 
       if (error) {
         throw new Error(error.message);
+      }
+
+      // Also update public.users table to persist the name change
+      if (updates.name) {
+        const { error: usersError } = await supabase
+          .from('users')
+          .update({ name: updates.name })
+          .eq('id', user.id);
+
+        if (usersError) {
+          console.error('Failed to update public.users:', usersError);
+          // Don't throw - auth metadata update succeeded, this is secondary
+        }
       }
 
       setUser({ ...user, ...updates });
@@ -213,6 +233,34 @@ export const useAuth = () => {
     }
   };
 
+  const updateEmail = async (newEmail: string) => {
+    if (!user) throw new Error('No user logged in');
+
+    try {
+      // Update email in auth.users - Supabase will send confirmation emails to both old and new addresses
+      const { error } = await supabase.auth.updateUser({
+        email: newEmail,
+      });
+
+      if (error) {
+        // Rate limiting
+        if (error.message.includes('rate limit') || error.message.includes('too many')) {
+          throw new Error('Çok fazla deneme yapıldı. Lütfen birkaç dakika bekleyin.');
+        }
+        // Email already in use
+        if (error.message.includes('already') || error.message.includes('exists')) {
+          throw new Error('Bu email adresi zaten kullanımda.');
+        }
+        throw new Error(error.message);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Update email error:', error);
+      throw error;
+    }
+  };
+
   return {
     user,
     loading,
@@ -220,6 +268,7 @@ export const useAuth = () => {
     signIn,
     signOut,
     updateProfile,
+    updateEmail,
     resetPasswordForEmail,
     updatePassword,
   };

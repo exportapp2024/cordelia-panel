@@ -89,6 +89,62 @@ export const MeetingsView: React.FC = () => {
     };
   };
 
+  // Get calendar events
+  const fetchEvents = useCallback(async (customTimeMin?: string, customTimeMax?: string) => {
+    if (!user?.id) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      let timeMin: string;
+      let timeMax: string;
+      
+      if (customTimeMin && customTimeMax) {
+        // Use provided date range
+        timeMin = customTimeMin;
+        timeMax = customTimeMax;
+      } else {
+        // Default: Get events for 3 months before and 3 months after current date
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        const threeMonthsLater = new Date();
+        threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+        
+        timeMin = threeMonthsAgo.toISOString();
+        timeMax = threeMonthsLater.toISOString();
+      }
+      
+      const url = buildApiUrl(`calendar/events/${user.id}?timeMin=${timeMin}&timeMax=${timeMax}`);
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.success) {
+        const mapped: CalendarEvent[] = (data.events || []).map((e: any) => ({
+          id: e.id,
+          summary: e.title,
+          description: e.description || '',
+          start: { dateTime: e.start_time },
+          end: { dateTime: e.end_time },
+          createdBy: e.created_by || e.user_id, // Use created_by from backend, fallback to user_id
+        }));
+        setEvents(mapped);
+        // Save the loaded date range
+        setLoadedDateRange({
+          min: new Date(timeMin),
+          max: new Date(timeMax)
+        });
+      } else {
+        throw new Error(data.error || 'Failed to fetch events');
+      }
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : 'Etkinlikler yüklenirken bir hata oluştu';
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
   // Helper function to check and load events if needed for a date
   const checkAndLoadEventsForDate = useCallback((date: Date) => {
     if (loadedDateRange) {
@@ -324,62 +380,6 @@ export const MeetingsView: React.FC = () => {
   };
 
   // Connection checks removed (local calendar always available)
-
-  // Get calendar events
-  const fetchEvents = useCallback(async (customTimeMin?: string, customTimeMax?: string) => {
-    if (!user?.id) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      let timeMin: string;
-      let timeMax: string;
-      
-      if (customTimeMin && customTimeMax) {
-        // Use provided date range
-        timeMin = customTimeMin;
-        timeMax = customTimeMax;
-      } else {
-        // Default: Get events for 3 months before and 3 months after current date
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-        const threeMonthsLater = new Date();
-        threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
-        
-        timeMin = threeMonthsAgo.toISOString();
-        timeMax = threeMonthsLater.toISOString();
-      }
-      
-      const url = buildApiUrl(`calendar/events/${user.id}?timeMin=${timeMin}&timeMax=${timeMax}`);
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.success) {
-        const mapped: CalendarEvent[] = (data.events || []).map((e: any) => ({
-          id: e.id,
-          summary: e.title,
-          description: e.description || '',
-          start: { dateTime: e.start_time },
-          end: { dateTime: e.end_time },
-          createdBy: e.created_by || e.user_id, // Use created_by from backend, fallback to user_id
-        }));
-        setEvents(mapped);
-        // Save the loaded date range
-        setLoadedDateRange({
-          min: new Date(timeMin),
-          max: new Date(timeMax)
-        });
-      } else {
-        throw new Error(data.error || 'Failed to fetch events');
-      }
-    } catch (error: unknown) {
-      const errorMsg = error instanceof Error ? error.message : 'Etkinlikler yüklenirken bir hata oluştu';
-      setError(errorMsg);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
 
   // Google auth removed
 
@@ -663,7 +663,7 @@ export const MeetingsView: React.FC = () => {
                 <span>Yeni Randevu</span>
               </button>
                       <button
-                onClick={fetchEvents}
+                onClick={() => fetchEvents()}
                 disabled={loading || !!syncingEventId}
                 className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
               >
