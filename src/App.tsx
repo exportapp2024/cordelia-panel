@@ -40,39 +40,28 @@ function App() {
   React.useEffect(() => {
     const handleAuthCallbacks = async () => {
       // Check URL hash for auth tokens
-      const hash = window.location.hash;
-      const hashParams = hash ? new URLSearchParams(hash.substring(1)) : new URLSearchParams();
-      
-      // Also check query string as fallback
-      const searchParams = new URLSearchParams(window.location.search);
-      
-      const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
-      const type = hashParams.get('type') || searchParams.get('type');
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const type = hashParams.get('type');
+      const message = hashParams.get('message');
 
       if (accessToken && type === 'recovery') {
         // Token is in URL, user will be handled by ResetPasswordView
         // Just ensure we're on the right route
         if (window.location.pathname !== '/reset-password') {
-          window.location.href = '/reset-password' + (hash || window.location.search);
+          window.location.href = '/reset-password' + window.location.hash;
         }
-      } else if (type === 'email_change') {
+      } else if (type === 'email_change' || (message && message.includes('Confirmation link accepted'))) {
         // Email change confirmation - redirect to verification page without checking email/user
-        // Always redirect to verification page when email_change type is detected
+        // Check both type=email_change and message containing "Confirmation link accepted"
         if (window.location.pathname !== '/email-change-verification') {
-          const redirectHash = hash || window.location.search || '';
-          window.location.href = '/email-change-verification' + redirectHash;
+          const hash = window.location.hash || '';
+          window.location.href = '/email-change-verification' + hash;
         }
       }
     };
 
     handleAuthCallbacks();
-
-    // Also listen for hash changes (in case hash is added after page load)
-    const handleHashChange = () => {
-      handleAuthCallbacks();
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -92,7 +81,6 @@ function App() {
     );
 
     return () => {
-      window.removeEventListener('hashchange', handleHashChange);
       subscription.unsubscribe();
     };
   }, []);
