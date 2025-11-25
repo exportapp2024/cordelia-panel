@@ -40,25 +40,39 @@ function App() {
   React.useEffect(() => {
     const handleAuthCallbacks = async () => {
       // Check URL hash for auth tokens
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      const type = hashParams.get('type');
+      const hash = window.location.hash;
+      const hashParams = hash ? new URLSearchParams(hash.substring(1)) : new URLSearchParams();
+      
+      // Also check query string as fallback
+      const searchParams = new URLSearchParams(window.location.search);
+      
+      const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+      const type = hashParams.get('type') || searchParams.get('type');
 
       if (accessToken && type === 'recovery') {
         // Token is in URL, user will be handled by ResetPasswordView
         // Just ensure we're on the right route
         if (window.location.pathname !== '/reset-password') {
-          window.location.href = '/reset-password' + window.location.hash;
+          window.location.href = '/reset-password' + (hash || window.location.search);
         }
-      } else if (accessToken && type === 'email_change') {
-        // Email change confirmation - redirect to verification page
+      } else if (type === 'email_change') {
+        // Email change confirmation - redirect to verification page without checking email/user
+        // Always redirect to verification page when email_change type is detected
         if (window.location.pathname !== '/email-change-verification') {
-          window.location.href = '/email-change-verification' + window.location.hash;
+          const redirectHash = hash || window.location.search || '';
+          window.location.href = '/email-change-verification' + redirectHash;
         }
       }
     };
 
     handleAuthCallbacks();
+
+    // Also listen for hash changes (in case hash is added after page load)
+    const handleHashChange = () => {
+      handleAuthCallbacks();
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -78,6 +92,7 @@ function App() {
     );
 
     return () => {
+      window.removeEventListener('hashchange', handleHashChange);
       subscription.unsubscribe();
     };
   }, []);

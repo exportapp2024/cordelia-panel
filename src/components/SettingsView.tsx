@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { User, Shield, LogOut } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { User, Shield, LogOut, CheckCircle, Circle, ArrowRight, Mail } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { TeamManagementSection } from './TeamManagementSection';
@@ -15,6 +15,9 @@ export const SettingsView: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEmailUpdateModal, setShowEmailUpdateModal] = useState(false);
+  const [emailUpdateData, setEmailUpdateData] = useState<{ oldEmail: string; newEmail: string } | null>(null);
+  const emailModalRef = useRef<HTMLDivElement>(null);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -31,6 +34,13 @@ export const SettingsView: React.FC = () => {
       });
     }
   }, [user]);
+
+  // Focus modal when it opens
+  useEffect(() => {
+    if (showEmailUpdateModal && emailModalRef.current) {
+      emailModalRef.current.focus();
+    }
+  }, [showEmailUpdateModal]);
 
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -58,25 +68,17 @@ export const SettingsView: React.FC = () => {
       // Update email if changed (this requires verification flow)
       if (emailChanged) {
         await updateEmail(profileData.email);
+        // Store email data for modal
+        setEmailUpdateData({
+          oldEmail: user?.email || '',
+          newEmail: profileData.email,
+        });
+        // Show modal instead of inline message
+        setShowEmailUpdateModal(true);
         if (nameChanged) {
-          setMessage(`✓ Profil Güncellendi!
-
-• İsim başarıyla güncellendi.
-• Email değişikliği başlatıldı.
-
-Doğrulama linkleri gönderildi:
-• Mevcut email: ${user?.email}
-• Yeni email: ${profileData.email}
-
-Her iki email adresinizdeki doğrulama linklerine tıklamanız gerekmektedir.`);
+          setMessage('Profil başarıyla güncellendi!');
         } else {
-          setMessage(`✓ Email Değişikliği Başlatıldı!
-
-Doğrulama linkleri gönderildi:
-• Mevcut email: ${user?.email}
-• Yeni email: ${profileData.email}
-
-Her iki email adresinizdeki doğrulama linklerine tıklamanız gerekmektedir.`);
+          setMessage(null);
         }
       } else {
         // Only name was changed
@@ -325,6 +327,111 @@ Her iki email adresinizdeki doğrulama linklerine tıklamanız gerekmektedir.`);
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Email Update Modal */}
+      {showEmailUpdateModal && emailUpdateData && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowEmailUpdateModal(false);
+            }
+          }}
+        >
+          <div 
+            ref={emailModalRef}
+            tabIndex={-1}
+            className="bg-white rounded-xl p-8 w-full max-w-3xl mx-4 shadow-xl"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setShowEmailUpdateModal(false);
+              }
+            }}
+          >
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Email Değişikliği Başlatıldı</h3>
+              <p className="text-sm text-gray-600">
+                Her iki email adresinizdeki doğrulama linklerine tıklamanız gerekmektedir
+              </p>
+            </div>
+            
+            {/* Horizontal Email Flow */}
+            <div className="flex items-center justify-between mb-8">
+              {/* Eski Email - Sol */}
+              <div className="flex-1 max-w-[45%]">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border-2 border-blue-200 shadow-sm">
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center shadow-md">
+                      <Circle className="w-6 h-6 text-white" strokeWidth={2.5} />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <Mail className="w-4 h-4 text-blue-600 mr-1" />
+                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Mevcut Email</p>
+                    </div>
+                    <p className="text-sm font-medium text-gray-800 mb-2 break-all">{emailUpdateData.oldEmail}</p>
+                    <div className="inline-flex items-center px-3 py-1 bg-blue-200 rounded-full">
+                      <Circle className="w-3 h-3 text-blue-600 mr-1.5" />
+                      <span className="text-xs text-blue-700 font-medium">Doğrulama Bekleniyor</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Arrow - Orta */}
+              <div className="flex-shrink-0 mx-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-emerald-400 rounded-full flex items-center justify-center shadow-lg">
+                  <ArrowRight className="w-6 h-6 text-white" strokeWidth={2.5} />
+                </div>
+              </div>
+
+              {/* Yeni Email - Sağ */}
+              <div className="flex-1 max-w-[45%]">
+                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-6 border-2 border-emerald-200 shadow-sm">
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-md">
+                      <Circle className="w-6 h-6 text-white" strokeWidth={2.5} />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <Mail className="w-4 h-4 text-emerald-600 mr-1" />
+                      <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Yeni Email</p>
+                    </div>
+                    <p className="text-sm font-medium text-gray-800 mb-2 break-all">{emailUpdateData.newEmail}</p>
+                    <div className="inline-flex items-center px-3 py-1 bg-emerald-200 rounded-full">
+                      <Circle className="w-3 h-3 text-emerald-600 mr-1.5" />
+                      <span className="text-xs text-emerald-700 font-medium">Doğrulama Bekleniyor</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Info Box */}
+            <div className="bg-gradient-to-r from-blue-50 to-emerald-50 border-l-4 border-emerald-500 rounded-lg p-4 mb-6">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <CheckCircle className="w-5 h-5 text-emerald-600 mt-0.5" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-800">
+                    Email değişikliğinin tamamlanması için <strong>her iki email adresinizdeki</strong> doğrulama linklerine tıklamanız gerekmektedir.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setShowEmailUpdateModal(false)}
+              className="w-full px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold shadow-md hover:shadow-lg"
+            >
+              Tamam
+            </button>
           </div>
         </div>
       )}
