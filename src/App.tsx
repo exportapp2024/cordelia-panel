@@ -43,6 +43,7 @@ function App() {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get('access_token');
       const type = hashParams.get('type');
+      const message = hashParams.get('message');
 
       if (accessToken && type === 'recovery') {
         // Token is in URL, user will be handled by ResetPasswordView
@@ -50,10 +51,12 @@ function App() {
         if (window.location.pathname !== '/reset-password') {
           window.location.href = '/reset-password' + window.location.hash;
         }
-      } else if (accessToken && type === 'email_change') {
-        // Email change confirmation - redirect to verification page
+      } else if (type === 'email_change' || (message && message.includes('Confirmation link accepted'))) {
+        // Email change confirmation - redirect to verification page without checking email/user
+        // Check both type=email_change and message containing "Confirmation link accepted"
         if (window.location.pathname !== '/email-change-verification') {
-          window.location.href = '/email-change-verification' + window.location.hash;
+          const hash = window.location.hash || '';
+          window.location.href = '/email-change-verification' + hash;
         }
       }
     };
