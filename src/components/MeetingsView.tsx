@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { usePatients } from '../hooks/usePatients';
 import { buildApiUrl } from '../lib/api';
 import { Calendar, momentLocalizer, SlotInfo, Event as RBCEvent, Views } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
@@ -43,6 +45,18 @@ interface CalendarEvent {
     displayName?: string;
   };
   createdBy?: string; // User ID who created the event
+  patient?: {
+    id: string;
+    patient_number: number;
+    data: {
+      name?: string;
+      national_id?: string;
+      phone?: string;
+      address?: string;
+      reason?: string;
+      notes?: string;
+    };
+  } | null;
 }
 
 // Extended event type for react-big-calendar
@@ -52,6 +66,8 @@ interface CalendarEventRBC extends RBCEvent {
 
 export const MeetingsView: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { patients } = usePatients(user?.id || null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +78,8 @@ export const MeetingsView: React.FC = () => {
     date: '',
     time: '',
     duration: '60',
-    notes: ''
+    notes: '',
+    patient_id: ''
   });
   // const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<string | null>(null);
@@ -127,6 +144,7 @@ export const MeetingsView: React.FC = () => {
           start: { dateTime: e.start_time },
           end: { dateTime: e.end_time },
           createdBy: e.created_by || e.user_id, // Use created_by from backend, fallback to user_id
+          patient: e.patients && Array.isArray(e.patients) && e.patients.length > 0 ? e.patients[0] : (e.patients || null),
         }));
         setEvents(mapped);
         // Save the loaded date range
@@ -196,7 +214,8 @@ export const MeetingsView: React.FC = () => {
       date: formattedDate,
       time: formattedTime,
       duration: '60',
-      notes: ''
+      notes: '',
+      patient_id: ''
     });
     setShowCreateModal(true);
   };
@@ -478,6 +497,7 @@ export const MeetingsView: React.FC = () => {
                 start: { dateTime: data.event.start_time },
                 end: { dateTime: data.event.end_time },
                 createdBy: data.event.created_by || data.event.user_id,
+                patient: data.event.patients && Array.isArray(data.event.patients) && data.event.patients.length > 0 ? data.event.patients[0] : (data.event.patients || null),
               };
               
               // Calculate dynamic date range based on appointment date
@@ -557,7 +577,7 @@ export const MeetingsView: React.FC = () => {
 
   // Create new appointment
   const createAppointment = async () => {
-    if (!user?.id || !formData.title || !formData.date || !formData.time) {
+    if (!user?.id || !formData.title || !formData.date || !formData.time || !formData.patient_id) {
       setError('Lütfen tüm zorunlu alanları doldurun');
       return;
     }
@@ -576,7 +596,8 @@ export const MeetingsView: React.FC = () => {
           date: formData.date,
           time: formData.time,
           duration_minutes: parseInt(formData.duration),
-          notes: formData.notes || undefined
+          notes: formData.notes || undefined,
+          patient_id: formData.patient_id
         }),
       });
 
@@ -584,7 +605,7 @@ export const MeetingsView: React.FC = () => {
 
       if (data.success) {
         setShowCreateModal(false);
-        setFormData({ title: '', date: '', time: '', duration: '60', notes: '' });
+        setFormData({ title: '', date: '', time: '', duration: '60', notes: '', patient_id: '' });
         await fetchEvents();
       } else {
         throw new Error(data.error || 'Randevu oluşturulamadı');
@@ -803,6 +824,25 @@ export const MeetingsView: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Hasta <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.patient_id}
+                  onChange={(e) => setFormData({ ...formData, patient_id: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-emerald-400"
+                  required
+                >
+                  <option value="">Hasta seçiniz</option>
+                  {patients.map((patient) => (
+                    <option key={patient.id} value={patient.id}>
+                      {patient.patient_number ? `#${patient.patient_number} - ` : ''}{patient.data.name || 'İsimsiz Hasta'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tarih <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -857,7 +897,7 @@ export const MeetingsView: React.FC = () => {
               <button
                 onClick={() => {
                   setShowCreateModal(false);
-                  setFormData({ title: '', date: '', time: '', duration: '60', notes: '' });
+                  setFormData({ title: '', date: '', time: '', duration: '60', notes: '', patient_id: '' });
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
@@ -865,7 +905,7 @@ export const MeetingsView: React.FC = () => {
               </button>
               <button
                 onClick={createAppointment}
-                disabled={creating || !formData.title || !formData.date || !formData.time}
+                disabled={creating || !formData.title || !formData.date || !formData.time || !formData.patient_id}
                 className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
                 {creating ? (
@@ -921,6 +961,21 @@ export const MeetingsView: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {selectedEvent.patient && (
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium text-gray-700">Hasta:</span>
+                    <button
+                      onClick={() => navigate(`/patient-file/${selectedEvent.patient!.id}`)}
+                      className="text-sm text-emerald-600 hover:text-emerald-700 hover:underline font-medium"
+                    >
+                      {selectedEvent.patient.data.name || 'İsimsiz Hasta'}
+                      {selectedEvent.patient.patient_number && ` (#${selectedEvent.patient.patient_number})`}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {selectedEvent.attendees && selectedEvent.attendees.length > 0 && (
                 <div>
