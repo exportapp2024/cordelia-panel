@@ -208,3 +208,104 @@ table th {
   overflow-x: auto !important;
   overflow-y: visible !important;
 }
+
+/* Mobile Responsive Styles for Calendar */
+@media (max-width: 767px) {
+  /* Make time gutter header scroll with the days */
+  .rbc-time-header-gutter {
+    width: 90px !important;
+    min-width: 90px !important;
+    flex: 0 0 90px !important;
+    display: block !important;
+    background-color: transparent !important;
+    border: none !important;
+  }
+
+  /* Keep time gutter fixed */
+  .rbc-time-gutter {
+    width: 45px;
+    min-width: 45px;
+    position: sticky;
+    left: 0;
+    background-color: white;
+    z-index: 10;
+  }
+
+  /* Smaller label text on mobile */
+  .rbc-label {
+    font-size: 9px;
+    padding-right: 2px;
+  }
+
+  /* Smaller and more compact header text on mobile */
+  .rbc-header {
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 90px;
+    max-width: 90px;
+    flex: 0 0 90px;
+  }
+
+  /* Make time columns compact and fixed width */
+  .rbc-time-column {
+    min-width: 90px;
+    max-width: 90px;
+    flex: 0 0 90px;
+  }
+
+  /* Enable horizontal scrolling for time content */
+  .rbc-time-content {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Enable horizontal scrolling for header */
+  .rbc-time-header-content {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .rbc-time-content::-webkit-scrollbar,
+  .rbc-time-header-content::-webkit-scrollbar {
+    height: 0;
+    width: 0;
+  }
+
+  /* Smaller event text on mobile */
+  .rbc-event {
+    font-size: 9px;
+    padding: 1px 2px;
+    border-left-width: 2px;
+  }
+
+  .rbc-event-content {
+    font-weight: 500;
+    font-size: 9px;
+  }
+
+  /* Reduce timeslot group height on mobile for better scrolling */
+  .rbc-timeslot-group {
+    min-height: 50px;
+  }
+
+  /* Smaller time slot on mobile */
+  .rbc-time-slot {
+    min-height: 12.5px;
+  }
+
+  /* Ensure header row doesn't wrap */
+  .rbc-time-header-content .rbc-row {
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  /* Make sure day slots don't wrap */
+  .rbc-day-slot {
+    min-width: 90px;
+  }
+}
