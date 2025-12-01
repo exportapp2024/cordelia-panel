@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePatients } from '../hooks/usePatients';
@@ -88,6 +88,7 @@ export const MeetingsView: React.FC = () => {
   const [syncingEventId, setSyncingEventId] = useState<string | null>(null);
   const [deepLinkParams, setDeepLinkParams] = useState<{ date?: string; appointmentId?: string; action?: string } | null>(null);
   const [loadedDateRange, setLoadedDateRange] = useState<{ min: Date; max: Date } | null>(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   // Convert CalendarEvent to react-big-calendar Event format
   const convertToRBCEvent = (event: CalendarEvent): CalendarEventRBC => {
@@ -392,6 +393,15 @@ export const MeetingsView: React.FC = () => {
     const fmt = (d: Date, opts: Intl.DateTimeFormatOptions) =>
       d.toLocaleDateString('tr-TR', opts);
 
+    // Mobile: Show shorter format
+    if (isMobile) {
+      if (start.getMonth() === end.getMonth()) {
+        return `${fmt(start, { day: 'numeric' })} - ${fmt(end, { day: 'numeric', month: 'short' })}`;
+      }
+      return `${fmt(start, { day: 'numeric', month: 'short' })} - ${fmt(end, { day: 'numeric', month: 'short' })}`;
+    }
+
+    // Desktop: Show full week range
     if (start.getMonth() === end.getMonth()) {
       return `${fmt(start, { day: 'numeric' })} - ${fmt(end, { day: 'numeric', month: 'long', year: 'numeric' })}`;
     }
@@ -444,6 +454,63 @@ export const MeetingsView: React.FC = () => {
       setDeletingEvent(null);
     }
   };
+
+  // Handle window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Scroll to center current day on mobile with horizontal scrolling
+  useEffect(() => {
+    if (!isMobile) return;
+
+    // Wait for calendar to render
+    const timer = setTimeout(() => {
+      const timeContent = document.querySelector('.rbc-time-content') as HTMLElement;
+      const timeHeader = document.querySelector('.rbc-time-header-content') as HTMLElement;
+      
+      if (!timeContent || !timeHeader) return;
+
+      // Sync scroll between header and content
+      const syncScroll = (source: HTMLElement, target: HTMLElement) => {
+        target.scrollLeft = source.scrollLeft;
+      };
+
+      const handleContentScroll = () => syncScroll(timeContent, timeHeader);
+      const handleHeaderScroll = () => syncScroll(timeHeader, timeContent);
+
+      timeContent.addEventListener('scroll', handleContentScroll);
+      timeHeader.addEventListener('scroll', handleHeaderScroll);
+
+      // Calculate which day of week (0=Monday, 6=Sunday)
+      const weekStart = moment(currentDate).startOf('week');
+      const dayIndex = moment(currentDate).diff(weekStart, 'days');
+      
+      // Get actual column width from the calendar
+      const firstColumn = timeContent.querySelector('.rbc-time-column') as HTMLElement;
+      const columnWidth = firstColumn ? firstColumn.offsetWidth : 100;
+      
+      // Calculate scroll position to center the current day
+      // Show: previous day | CURRENT DAY (centered) | next day
+      const containerWidth = timeContent.offsetWidth;
+      const scrollLeft = Math.max(0, (dayIndex * columnWidth) - (containerWidth / 2) + (columnWidth / 2));
+      
+      timeContent.scrollLeft = scrollLeft;
+      timeHeader.scrollLeft = scrollLeft;
+
+      return () => {
+        timeContent.removeEventListener('scroll', handleContentScroll);
+        timeHeader.removeEventListener('scroll', handleHeaderScroll);
+      };
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [isMobile, currentDate]);
 
   // Initialize component
   useEffect(() => {
@@ -644,56 +711,56 @@ export const MeetingsView: React.FC = () => {
       ) : (
         <div className="bg-white rounded-lg shadow border border-gray-200 flex flex-col" style={{ height: 'calc(100vh - 12.5rem)' }}>
           {/* Custom Toolbar */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
-            <div className="flex items-center space-x-3">
+          <div className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center space-x-1 sm:space-x-3">
               <button
                 onClick={handleToday}
-                className="px-3 py-1.5 text-sm border border-gray-300 hover:bg-gray-50 text-gray-700 rounded font-medium transition-colors"
+                className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 text-gray-700 rounded font-medium transition-colors"
               >
                 Bugün
               </button>
               <div className="flex items_center">
                 <button
                   onClick={handlePreviousWeek}
-                  className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                  className="p-1 sm:p-1.5 hover:bg-gray-100 rounded transition-colors"
                   title="Önceki hafta"
                 >
-                  <ChevronLeft className="w-5 h-5 text-gray-600" />
+                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                 </button>
                 <button
                   onClick={handleNextWeek}
-                  className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                  className="p-1 sm:p-1.5 hover:bg-gray-100 rounded transition-colors"
                   title="Sonraki hafta"
                 >
-                  <ChevronRight className="w-5 h-5 text-gray-600" />
+                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                 </button>
                     </div>
-              <h2 className="text-xl font-normal text-gray-900">
+              <h2 className="text-sm sm:text-xl font-normal text-gray-900">
                 {getWeekRange()}
               </h2>
                   </div>
                   
             {/* Actions on the right */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-1 sm:space-x-2"
                 disabled={!!syncingEventId}
               >
                 <Plus className="w-4 h-4" />
-                <span>Yeni Randevu</span>
+                <span className="hidden sm:inline">Yeni Randevu</span>
               </button>
                       <button
                 onClick={() => fetchEvents()}
                 disabled={loading || !!syncingEventId}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-1 sm:space-x-2"
               >
                 <RefreshCw className={`${loading ? 'animate-spin' : ''} w-4 h-4`} />
-                <span>Yenile</span>
+                <span className="hidden sm:inline">Yenile</span>
                       </button>
               
             {syncingEventId && (
-              <span className="text-xs text-gray-500 ml-2">Kaydediliyor...</span>
+              <span className="hidden sm:inline text-xs text-gray-500 ml-2">Kaydediliyor...</span>
             )}
           </div>
           </div>
@@ -742,7 +809,7 @@ export const MeetingsView: React.FC = () => {
               max={new Date(1970, 0, 1, 23, 59, 59)}
               formats={{
                 dayFormat: (date) =>
-                  date.toLocaleDateString('tr-TR', { weekday: 'long', day: '2-digit' }),
+                  date.toLocaleDateString('tr-TR', { weekday: isMobile ? 'short' : 'long', day: '2-digit' }),
                 timeGutterFormat: (date) =>
                   date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false }),
                 dateFormat: (date) => date.toLocaleDateString('tr-TR', { day: 'numeric' }),
@@ -751,7 +818,7 @@ export const MeetingsView: React.FC = () => {
                 monthHeaderFormat: (date) =>
                   date.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' }),
                 dayHeaderFormat: (date) =>
-                  date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' }),
+                  date.toLocaleDateString('tr-TR', { day: 'numeric', month: isMobile ? 'short' : 'long', year: 'numeric', weekday: isMobile ? 'short' : 'long' }),
                 dayRangeHeaderFormat: ({ start, end }) => {
                   const s = start instanceof Date ? start : new Date(start as string);
                   const e = end instanceof Date ? end : new Date(end as string);
