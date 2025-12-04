@@ -62,7 +62,9 @@ const PatientMedicalFileView: React.FC = () => {
   const [showAppointments, setShowAppointments] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [showPastAppointments, setShowPastAppointments] = useState(false);
   const [showCreateAppointmentModal, setShowCreateAppointmentModal] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [creatingAppointment, setCreatingAppointment] = useState(false);
   const [appointmentFormData, setAppointmentFormData] = useState({
     title: '',
@@ -139,10 +141,24 @@ const PatientMedicalFileView: React.FC = () => {
       setLoadingAppointments(true);
       setError(null);
       const response = await fetchPatientAppointments(user.id, patientId);
-      // Sort by start_time (ascending - upcoming first)
-      const sorted = response.events.sort((a, b) => 
-        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-      );
+      // Sort by start_time: most recent (closest to today) first, oldest last
+      // This means: future appointments ascending (closest first), past appointments descending (most recent past first)
+      const now = new Date().getTime();
+      const sorted = response.events.sort((a, b) => {
+        const timeA = new Date(a.start_time).getTime();
+        const timeB = new Date(b.start_time).getTime();
+        // If both are future or both are past, sort by time (ascending for future, descending for past)
+        if (timeA >= now && timeB >= now) {
+          // Both future: ascending (closest first)
+          return timeA - timeB;
+        } else if (timeA < now && timeB < now) {
+          // Both past: descending (most recent past first)
+          return timeB - timeA;
+        } else {
+          // One future, one past: future comes first
+          return timeA >= now ? -1 : 1;
+        }
+      });
       setAppointments(sorted);
     } catch (err) {
       console.error('Error loading appointments:', err);
@@ -528,7 +544,23 @@ const PatientMedicalFileView: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <style>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 0.6;
+            transform: translateY(0);
+          }
+        }
+        .animate-fadeInUp {
+          animation: fadeInUp 0.4s ease-out;
+        }
+      `}</style>
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -710,7 +742,7 @@ const PatientMedicalFileView: React.FC = () => {
                 {showAppointments ? (
                   <div className="space-y-6">
                     {/* Appointments Header */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
                         <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                           <Calendar className="w-5 h-5 mr-2" />
@@ -719,15 +751,34 @@ const PatientMedicalFileView: React.FC = () => {
                         <p className="text-sm text-gray-600 mt-1">Bu hastaya ait randevular</p>
                       </div>
                       <div className="flex items-center space-x-3">
+                        {/* Show Past Appointments Toggle */}
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-600 whitespace-nowrap">Geçmiş</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowPastAppointments(!showPastAppointments)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                              showPastAppointments ? 'bg-emerald-600' : 'bg-gray-300'
+                            }`}
+                            role="switch"
+                            aria-checked={showPastAppointments}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                showPastAppointments ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
                         <button
                           onClick={() => setShowAppointments(false)}
-                          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap"
                         >
                           Dosyaya Dön
                         </button>
                         <button
                           onClick={() => setShowCreateAppointmentModal(true)}
-                          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2"
+                          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2 whitespace-nowrap"
                         >
                           <Plus className="w-4 h-4" />
                           <span>Yeni Randevu</span>
@@ -741,44 +792,76 @@ const PatientMedicalFileView: React.FC = () => {
                         <Loader2 className="w-6 h-6 animate-spin text-emerald-600 mr-3" />
                         <span className="text-gray-600">Randevular yükleniyor...</span>
                       </div>
-                    ) : appointments.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600">Bu hastaya ait randevu bulunmamaktadır.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {appointments.map((appointment) => (
-                          <div
-                            key={appointment.id}
-                            className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                  {appointment.title}
-                                </h3>
-                                <div className="flex items-center space-x-4 text-sm text-gray-600">
-                                  <div className="flex items-center space-x-1">
-                                    <Calendar className="w-4 h-4" />
-                                    <span>{formatAppointmentDate(appointment.start_time)}</span>
+                    ) : (() => {
+                      const now = new Date();
+                      const filteredAppointments = showPastAppointments 
+                        ? appointments 
+                        : appointments.filter(apt => new Date(apt.start_time) >= now);
+                      
+                      return filteredAppointments.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-600">
+                            {showPastAppointments 
+                              ? 'Bu hastaya ait randevu bulunmamaktadır.'
+                              : 'Yaklaşan randevu bulunmamaktadır.'}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {filteredAppointments.map((appointment, index) => {
+                            const isPast = new Date(appointment.start_time) < new Date();
+                            const shouldAnimate = isPast && showPastAppointments;
+                            return (
+                            <div
+                              key={appointment.id}
+                              onClick={() => setSelectedAppointment(appointment)}
+                              className={`border rounded-lg p-4 transition-all duration-300 ease-in-out cursor-pointer ${
+                                isPast 
+                                  ? 'border-gray-200 bg-gray-50' 
+                                  : 'border-gray-200 hover:shadow-md hover:border-emerald-300'
+                              } ${shouldAnimate ? 'animate-fadeInUp' : isPast ? 'opacity-60' : ''}`}
+                              style={shouldAnimate ? {
+                                animationDelay: `${index * 0.05}s`,
+                                animationFillMode: 'both'
+                              } : {}}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h3 className={`text-lg font-semibold mb-2 ${
+                                    isPast ? 'text-gray-500' : 'text-gray-900'
+                                  }`}>
+                                    {appointment.title}
+                                  </h3>
+                                  <div className={`flex items-center space-x-4 text-sm ${
+                                    isPast ? 'text-gray-400' : 'text-gray-600'
+                                  }`}>
+                                    <div className="flex items-center space-x-1">
+                                      <Calendar className="w-4 h-4" />
+                                      <span>{formatAppointmentDate(appointment.start_time)}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <Clock className="w-4 h-4" />
+                                      <span>
+                                        {formatAppointmentTime(appointment.start_time)} - {formatAppointmentTime(appointment.end_time)}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center space-x-1">
-                                    <Clock className="w-4 h-4" />
-                                    <span>
-                                      {formatAppointmentTime(appointment.start_time)} - {formatAppointmentTime(appointment.end_time)}
-                                    </span>
-                                  </div>
+                                  {appointment.description && (
+                                    <p className={`text-sm mt-2 ${
+                                      isPast ? 'text-gray-400' : 'text-gray-600'
+                                    }`}>
+                                      {appointment.description}
+                                    </p>
+                                  )}
                                 </div>
-                                {appointment.description && (
-                                  <p className="text-sm text-gray-600 mt-2">{appointment.description}</p>
-                                )}
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   renderSectionContent()
@@ -846,6 +929,69 @@ const PatientMedicalFileView: React.FC = () => {
         userId={user?.id}
         patientId={patientId}
       />
+
+      {/* Appointment Details Modal */}
+      {selectedAppointment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Randevu Detayları</h2>
+              <button
+                onClick={() => setSelectedAppointment(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {selectedAppointment.title}
+                </h3>
+                {selectedAppointment.description && (
+                  <p className="text-gray-600">{selectedAppointment.description}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <Calendar className="w-4 h-4" />
+                  <span>{formatAppointmentDate(selectedAppointment.start_time)}</span>
+                </div>
+                
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <Clock className="w-4 h-4" />
+                  <span>
+                    {formatAppointmentTime(selectedAppointment.start_time)} - {formatAppointmentTime(selectedAppointment.end_time)}
+                  </span>
+                </div>
+              </div>
+
+              {selectedAppointment.patients && (
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium text-gray-700">Hasta:</span>
+                    <span className="text-sm text-gray-600">
+                      {selectedAppointment.patients.data?.name || 'İsimsiz Hasta'}
+                      {selectedAppointment.patients.patient_number && ` (#${selectedAppointment.patients.patient_number})`}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => setSelectedAppointment(null)}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+              >
+                Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Appointment Modal */}
       {showCreateAppointmentModal && (
@@ -977,7 +1123,8 @@ const PatientMedicalFileView: React.FC = () => {
         patientData={patientData as Record<string, unknown> | undefined}
         patientId={patientId}
       />
-    </div>
+      </div>
+    </>
   );
 };
 
