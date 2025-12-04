@@ -16,7 +16,11 @@ import {
   Calendar,
   Clock,
   Plus,
-  X
+  X,
+  Edit2,
+  Trash2,
+  Check,
+  Syringe
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { fetchMedicalFile, updateMedicalFile, fetchPatientAppointments, createPatientAppointment, type Appointment } from '../lib/api';
@@ -24,7 +28,8 @@ import {
   MedicalFileData, 
   MEDICAL_FILE_FIELDS, 
   MEDICAL_FILE_TABS, 
-  createEmptyMedicalFile 
+  createEmptyMedicalFile,
+  ProcedureItem
 } from '../types/medicalFile';
 import DocumentGenerationModal from './DocumentGenerationModal';
 import { EnhancedChatWidget } from './EnhancedChatWidget';
@@ -73,6 +78,9 @@ const PatientMedicalFileView: React.FC = () => {
     duration: '60',
     notes: ''
   });
+  
+  // Procedure editing state
+  const [editingProcedureId, setEditingProcedureId] = useState<string | null>(null);
 
   const loadMedicalFile = useCallback(async () => {
     try {
@@ -99,6 +107,11 @@ const PatientMedicalFileView: React.FC = () => {
         
         // Auto-populate common fields from patient.data
         const updatedMedicalFile = { ...medicalFile.medical_file || createEmptyMedicalFile() } as MedicalFileData;
+        
+        // Ensure procedures array exists for backward compatibility
+        if (!updatedMedicalFile.procedureInfo.procedures) {
+          updatedMedicalFile.procedureInfo.procedures = [];
+        }
         
         // Auto-populate from patient.data if available
         if (medicalFile.data) {
@@ -194,6 +207,62 @@ const PatientMedicalFileView: React.FC = () => {
       }
       return prev;
     });
+  };
+
+  // Procedure handlers
+  const handleAddProcedure = () => {
+    if (isReadOnly) return;
+    
+    const newProcedureId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+    const newProcedure: ProcedureItem = {
+      id: newProcedureId,
+      date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
+      description: medicalFileData.procedureInfo.plannedProcedures || '',
+      anesthesiaType: medicalFileData.procedureInfo.anesthesiaType || '',
+      duration: medicalFileData.procedureInfo.duration || '',
+      notes: medicalFileData.procedureInfo.operativeNotes || ''
+    };
+    
+    setMedicalFileData(prev => ({
+      ...prev,
+      procedureInfo: {
+        ...prev.procedureInfo,
+        procedures: [newProcedure, ...(prev.procedureInfo.procedures || [])],
+        // Clear the form fields
+        plannedProcedures: '',
+        anesthesiaType: '',
+        duration: '',
+        operativeNotes: ''
+      }
+    }));
+  };
+
+  const handleUpdateProcedure = (procedureId: string, field: keyof ProcedureItem, value: string) => {
+    if (isReadOnly) return;
+    
+    setMedicalFileData(prev => ({
+      ...prev,
+      procedureInfo: {
+        ...prev.procedureInfo,
+        procedures: (prev.procedureInfo.procedures || []).map(proc =>
+          proc.id === procedureId ? { ...proc, [field]: value } : proc
+        )
+      }
+    }));
+  };
+
+  const handleDeleteProcedure = (procedureId: string) => {
+    if (isReadOnly) return;
+    
+    if (window.confirm('Bu işlemi silmek istediğinizden emin misiniz?')) {
+      setMedicalFileData(prev => ({
+        ...prev,
+        procedureInfo: {
+          ...prev.procedureInfo,
+          procedures: (prev.procedureInfo.procedures || []).filter(proc => proc.id !== procedureId)
+        }
+      }));
+    }
   };
 
   const handleSave = async () => {
@@ -417,14 +486,30 @@ const PatientMedicalFileView: React.FC = () => {
         );
 
       case 'procedureInfo':
+        const sortedProcedures = [...(medicalFileData.procedureInfo.procedures || [])].sort((a, b) => {
+          // Sort by date descending (newest first)
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        });
+        
         return (
           <div className="space-y-6">
-            <div className="border-b border-gray-200 pb-4">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                {getTabIcon(activeSection?.icon || 'Activity')}
-                <span className="ml-2">{activeSection?.label}</span>
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">Yapılan işlem ve tedavi detayları</p>
+            <div className="border-b border-gray-200 pb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                  {getTabIcon(activeSection?.icon || 'Activity')}
+                  <span className="ml-2">{activeSection?.label}</span>
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">Yapılan işlem ve tedavi detayları</p>
+              </div>
+              {!isReadOnly && (
+                <button
+                  onClick={handleAddProcedure}
+                  className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ekle
+                </button>
+              )}
             </div>
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -455,31 +540,197 @@ const PatientMedicalFileView: React.FC = () => {
                   disabled={isReadOnly}
                 />
               </div>
-            </div>
-          </div>
-        );
-
-      case 'followUpNotes':
-        return (
-          <div className="space-y-6">
-            <div className="border-b border-gray-200 pb-4">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                {getTabIcon(activeSection?.icon || 'Clipboard')}
-                <span className="ml-2">{activeSection?.label}</span>
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">Hasta takip süreci ve gözlemler</p>
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Takip Notları
-              </label>
-              <textarea
-                value={medicalFileData.followUpNotes}
-                onChange={(e) => setMedicalFileData(prev => ({ ...prev, followUpNotes: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                rows={16}
-                disabled={isReadOnly}
-              />
+              
+              {/* Yapılan İşlemler Section */}
+              <div className="border-t border-gray-200 pt-6 mt-6">
+                
+                {sortedProcedures.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>Henüz işlem eklenmemiş.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {sortedProcedures.map((procedure) => {
+                      const isEditing = editingProcedureId === procedure.id;
+                      const formattedDate = procedure.date 
+                        ? new Date(procedure.date).toLocaleDateString('tr-TR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })
+                        : 'Tarih belirtilmemiş';
+                      
+                      return (
+                        <div
+                          key={procedure.id}
+                          className={`border rounded-lg transition-all ${
+                            isEditing 
+                              ? 'border-emerald-300 bg-emerald-50/30 shadow-md' 
+                              : 'border-gray-200 bg-white hover:border-gray-300'
+                          }`}
+                        >
+                          {isEditing ? (
+                            // Edit Mode
+                            <div className="p-4">
+                              <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-sm font-semibold text-emerald-700 flex items-center">
+                                  <Edit2 className="w-4 h-4 mr-2" />
+                                  İşlem Düzenleniyor
+                                </h4>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => setEditingProcedureId(null)}
+                                    className="inline-flex items-center px-3 py-1.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+                                    title="Kaydet"
+                                  >
+                                    <Check className="w-4 h-4 mr-1" />
+                                    Tamam
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteProcedure(procedure.id)}
+                                    className="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-600 text-sm rounded-lg hover:bg-red-200 transition-colors"
+                                    title="Sil"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-1" />
+                                    Sil
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                  <label className="block text-sm font-medium text-gray-700">
+                                    Tarih
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={procedure.date}
+                                    onChange={(e) => handleUpdateProcedure(procedure.id, 'date', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <label className="block text-sm font-medium text-gray-700">
+                                    Anestezi Tipi
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={procedure.anesthesiaType}
+                                    onChange={(e) => handleUpdateProcedure(procedure.id, 'anesthesiaType', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                                    placeholder="Örn: Genel, Lokal, Sedasyon"
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <label className="block text-sm font-medium text-gray-700">
+                                    Süre
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={procedure.duration}
+                                    onChange={(e) => handleUpdateProcedure(procedure.id, 'duration', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                                    placeholder="Örn: 2 saat"
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="mt-4 space-y-2">
+                                <label className="block text-sm font-medium text-gray-700">
+                                  İşlem Açıklaması
+                                </label>
+                                <textarea
+                                  value={procedure.description}
+                                  onChange={(e) => handleUpdateProcedure(procedure.id, 'description', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                                  rows={3}
+                                  placeholder="Yapılan işlemin detaylı açıklaması..."
+                                />
+                              </div>
+                              
+                              <div className="mt-4 space-y-2">
+                                <label className="block text-sm font-medium text-gray-700">
+                                  Notlar
+                                </label>
+                                <textarea
+                                  value={procedure.notes}
+                                  onChange={(e) => handleUpdateProcedure(procedure.id, 'notes', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                                  rows={2}
+                                  placeholder="Ek notlar..."
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            // View Mode - Compact
+                            <div className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0 pr-4 break-words">
+                                  {procedure.description ? (
+                                    <p className="text-gray-900 font-medium mb-1">{procedure.description}</p>
+                                  ) : (
+                                    <p className="text-gray-400 italic mb-1">İşlem açıklaması girilmemiş</p>
+                                  )}
+                                  
+                                  {procedure.notes && (
+                                    <p className="text-sm text-gray-600">
+                                      <span className="font-medium">Not:</span> {procedure.notes}
+                                    </p>
+                                  )}
+                                </div>
+                                
+                                <div className="flex items-start shrink-0">
+                                  <div className="flex flex-col items-end space-y-2 mr-4">
+                                    <span className="inline-flex items-center px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full max-w-[150px]">
+                                      <Calendar className="w-3 h-3 mr-1 shrink-0" />
+                                      <span className="truncate">{formattedDate}</span>
+                                    </span>
+                                    {procedure.anesthesiaType && (
+                                      <span className="inline-flex items-center px-2.5 py-1 bg-blue-100 text-blue-600 text-xs font-medium rounded-full max-w-[150px]">
+                                        <Syringe className="w-3 h-3 mr-1 shrink-0" />
+                                        <span className="truncate">{procedure.anesthesiaType}</span>
+                                      </span>
+                                    )}
+                                    {procedure.duration && (
+                                      <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full max-w-[150px]">
+                                        <Clock className="w-3 h-3 mr-1 shrink-0" />
+                                        <span className="truncate">{procedure.duration}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                  
+                                  {!isReadOnly && (
+                                    <div className="flex flex-col items-center space-y-2 pl-4 border-l border-gray-200">
+                                      <button
+                                        onClick={() => setEditingProcedureId(procedure.id)}
+                                        className="inline-flex items-center px-3 py-1.5 text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors text-sm font-medium w-full justify-center"
+                                        title="Düzenle"
+                                      >
+                                        <Edit2 className="w-4 h-4 mr-1" />
+                                        Düzenle
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteProcedure(procedure.id)}
+                                        className="inline-flex items-center px-3 py-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium w-full justify-center"
+                                        title="Sil"
+                                      >
+                                        <Trash2 className="w-4 h-4 mr-1" />
+                                        Sil
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );

@@ -32,7 +32,6 @@ export interface ChatMessageResponse {
         generalHealthHistory?: Record<string, string>;
         preoperativeEvaluation?: Record<string, string>;
         procedureInfo?: Record<string, string>;
-        followUpNotes?: string;
         dischargeRecommendations?: Record<string, string>;
       };
     };
@@ -89,7 +88,6 @@ export async function updateMedicalFile(userId: string, patientId: string, medic
   generalHealthHistory?: Record<string, string>;
   preoperativeEvaluation?: Record<string, string>;
   procedureInfo?: Record<string, string>;
-  followUpNotes?: string;
   dischargeRecommendations?: Record<string, string>;
 }) {
   const url = buildApiUrl(`/users/${userId}/patients/${patientId}/medical-file`);
