@@ -621,13 +621,21 @@ const PatientMedicalFileView: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700">
                   Operatif / İşlem Notları
                 </label>
-                <textarea
-                  value={medicalFileData.procedureInfo.operativeNotes}
-                  onChange={(e) => handleFieldChange('procedureInfo', 'operativeNotes', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  rows={6}
-                  disabled={isReadOnly}
-                />
+                <div className="relative">
+                  <textarea
+                    value={medicalFileData.procedureInfo.operativeNotes}
+                    onChange={(e) => handleFieldChange('procedureInfo', 'operativeNotes', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    rows={6}
+                    disabled={isReadOnly}
+                    maxLength={400}
+                  />
+                  {!isReadOnly && (
+                    <div className="absolute top-2 right-2 text-xs text-gray-400 opacity-60 pointer-events-none">
+                      {400 - (medicalFileData.procedureInfo.operativeNotes?.length || 0)}
+                    </div>
+                  )}
+                </div>
               </div>
               
               {/* Yapılan İşlemler Section */}
@@ -743,13 +751,19 @@ const PatientMedicalFileView: React.FC = () => {
                                 <label className="block text-sm font-medium text-gray-700">
                                   Notlar
                                 </label>
-                                <textarea
-                                  value={procedure.notes}
-                                  onChange={(e) => handleUpdateProcedure(procedure.id, 'notes', e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                                  rows={2}
-                                  placeholder="Ek notlar..."
-                                />
+                                <div className="relative">
+                                  <textarea
+                                    value={procedure.notes}
+                                    onChange={(e) => handleUpdateProcedure(procedure.id, 'notes', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                                    rows={2}
+                                    placeholder="Ek notlar..."
+                                    maxLength={400}
+                                  />
+                                  <div className="absolute top-2 right-2 text-xs text-gray-400 opacity-60 pointer-events-none">
+                                    {400 - (procedure.notes?.length || 0)}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           ) : (
