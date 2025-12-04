@@ -51,8 +51,9 @@ function App() {
         if (window.location.pathname !== '/reset-password') {
           window.location.href = '/reset-password' + window.location.hash;
         }
-      } else if (type === 'email_change' || (message && message.includes('Confirmation link accepted'))) {
-        // Email change confirmation - redirect to verification page without checking email/user
+      } else if (accessToken && (type === 'email_change' || (message && message.includes('Confirmation link accepted')))) {
+        // Email change confirmation - redirect to verification page
+        // Require accessToken for security - only redirect if valid auth token exists
         // Check both type=email_change and message containing "Confirmation link accepted"
         if (window.location.pathname !== '/email-change-verification') {
           const hash = window.location.hash || '';
