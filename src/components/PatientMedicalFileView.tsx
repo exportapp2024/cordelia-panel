@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   User, 
@@ -22,7 +22,9 @@ import {
   Check,
   Syringe,
   MoreVertical,
-  MoreHorizontal
+  MoreHorizontal,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { fetchMedicalFile, updateMedicalFile, fetchPatientAppointments, createPatientAppointment, type Appointment } from '../lib/api';
@@ -36,6 +38,62 @@ import {
 import DocumentGenerationModal from './DocumentGenerationModal';
 import { EnhancedChatWidget } from './EnhancedChatWidget';
 import { PhoneInputField } from './PhoneInputField';
+
+interface NotesDisplayProps {
+  notes: string;
+  procedureId: string;
+  isExpanded: boolean;
+  onToggleExpand: (id: string) => void;
+}
+
+const NotesDisplay: React.FC<NotesDisplayProps> = ({ notes, procedureId, isExpanded, onToggleExpand }) => {
+  const notesRef = useRef<HTMLParagraphElement>(null);
+  const [showExpandButton, setShowExpandButton] = useState(false);
+  
+  useEffect(() => {
+    if (notesRef.current && !isExpanded) {
+      // Check if content exceeds 2 lines
+      const lineHeight = 20; // text-sm line height in pixels
+      const maxHeight = lineHeight * 2; // 2 lines
+      if (notesRef.current.scrollHeight > maxHeight) {
+        setShowExpandButton(true);
+      } else {
+        setShowExpandButton(false);
+      }
+    } else {
+      setShowExpandButton(false);
+    }
+  }, [notes, isExpanded]);
+  
+  return (
+    <div className="mt-1">
+      <p 
+        ref={notesRef}
+        className={`text-sm text-gray-600 break-words ${
+          !isExpanded && showExpandButton ? 'line-clamp-2' : ''
+        }`}
+      >
+        <span className="font-medium">Not:</span> {notes}
+      </p>
+      {showExpandButton && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleExpand(procedureId);
+          }}
+          className="mt-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center space-x-1"
+        >
+          <span>{isExpanded ? 'Daha az göster' : 'Daha fazla göster'}</span>
+          {isExpanded ? (
+            <ChevronUp className="w-3 h-3" />
+          ) : (
+            <ChevronDown className="w-3 h-3" />
+          )}
+        </button>
+      )}
+    </div>
+  );
+};
 
 const PatientMedicalFileView: React.FC = () => {
   const { patientId } = useParams<{ patientId: string }>();
@@ -84,6 +142,8 @@ const PatientMedicalFileView: React.FC = () => {
   // Procedure editing state
   const [editingProcedureId, setEditingProcedureId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [deleteConfirmProcedureId, setDeleteConfirmProcedureId] = useState<string | null>(null);
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
 
   const loadMedicalFile = useCallback(async () => {
     try {
@@ -263,16 +323,24 @@ const PatientMedicalFileView: React.FC = () => {
 
   const handleDeleteProcedure = (procedureId: string) => {
     if (isReadOnly) return;
+    setDeleteConfirmProcedureId(procedureId);
+  };
+
+  const confirmDeleteProcedure = () => {
+    if (!deleteConfirmProcedureId) return;
     
-    if (window.confirm('Bu işlemi silmek istediğinizden emin misiniz?')) {
-      setMedicalFileData(prev => ({
-        ...prev,
-        procedureInfo: {
-          ...prev.procedureInfo,
-          procedures: (prev.procedureInfo.procedures || []).filter(proc => proc.id !== procedureId)
-        }
-      }));
-    }
+    setMedicalFileData(prev => ({
+      ...prev,
+      procedureInfo: {
+        ...prev.procedureInfo,
+        procedures: (prev.procedureInfo.procedures || []).filter(proc => proc.id !== deleteConfirmProcedureId)
+      }
+    }));
+    setDeleteConfirmProcedureId(null);
+  };
+
+  const cancelDeleteProcedure = () => {
+    setDeleteConfirmProcedureId(null);
   };
 
   const handleSave = async () => {
@@ -740,9 +808,22 @@ const PatientMedicalFileView: React.FC = () => {
                                 )}
                                 
                                 {procedure.notes && (
-                                  <p className="text-sm text-gray-600 break-words">
-                                    <span className="font-medium">Not:</span> {procedure.notes}
-                                  </p>
+                                  <NotesDisplay
+                                    notes={procedure.notes}
+                                    procedureId={procedure.id}
+                                    isExpanded={expandedNotes.has(procedure.id)}
+                                    onToggleExpand={(id) => {
+                                      setExpandedNotes(prev => {
+                                        const newSet = new Set(prev);
+                                        if (newSet.has(id)) {
+                                          newSet.delete(id);
+                                        } else {
+                                          newSet.add(id);
+                                        }
+                                        return newSet;
+                                      });
+                                    }}
+                                  />
                                 )}
                               </div>
 
@@ -1404,6 +1485,40 @@ const PatientMedicalFileView: React.FC = () => {
                   <span>Oluştur</span>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmProcedureId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 text-center mb-2">
+                İşlemi Sil
+              </h3>
+              <p className="text-gray-600 text-center mb-6">
+                Bu işlemi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+              </p>
+              <div className="flex items-center justify-center space-x-3">
+                <button
+                  onClick={cancelDeleteProcedure}
+                  className="px-6 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={confirmDeleteProcedure}
+                  className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center space-x-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Sil</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
