@@ -97,7 +97,7 @@ const turkishLabels = {
       phoneNumber: 'Telefon No:',
       address: 'Adres:',
       admissionDate: 'Kabul Tarihi:',
-      surgeryDate: 'Ameliyat / İşlem Tarihi:',
+      surgeryDate: 'Rapor Tarihi:',
       dischargeDate: 'Taburculuk Tarihi:',
       lastControlDate: 'Son Klinik Kontrol Tarihi:',
       flightEligibilityDate: 'Uçuşa Elverişlilik Tarihi:',
@@ -193,7 +193,7 @@ const englishLabels = {
       phoneNumber: 'Phone No:',
       address: 'Address:',
       admissionDate: 'Admission Date:',
-      surgeryDate: 'Surgery / Procedure Date:',
+      surgeryDate: 'Report Date:',
       dischargeDate: 'Discharge Date:',
       lastControlDate: 'Last Clinical Control Date:',
       flightEligibilityDate: 'Flight Eligibility Date:',
@@ -437,27 +437,35 @@ export const generateEpicrisisDocument = async (
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .slice(0, 5);
             
-          return lastProcedures.map((proc) => ({
-            table: {
-              widths: [150, '*'],
-              body: [
-                [labels.fields.surgeryDate, formatDate(proc.date)],
-                [labels.fields.plannedProcedures, proc.description || ''],
-                [labels.fields.anesthesiaType, proc.anesthesiaType || ''],
-                [labels.fields.duration, proc.duration || ''],
-                [labels.fields.operativeNotes, proc.notes || '']
-              ]
+          return lastProcedures.map((proc, index) => ([
+            {
+              text: `${index + 1}.`,
+              fontSize: 11,
+              bold: true,
+              margin: [0, 0, 0, 5]
             },
-            layout: {
-              hLineWidth: () => 0,
-              vLineWidth: () => 0,
-              paddingTop: () => 5,
-              paddingBottom: () => 5,
-              paddingLeft: () => 0,
-              paddingRight: () => 0
-            },
-            margin: [0, 0, 0, 20] as [number, number, number, number]
-          }));
+            {
+              table: {
+                widths: [150, '*'],
+                body: [
+                  [labels.fields.surgeryDate, formatDate(proc.date)],
+                  [labels.fields.plannedProcedures, proc.description || ''],
+                  [labels.fields.anesthesiaType, proc.anesthesiaType || ''],
+                  [labels.fields.duration, proc.duration || ''],
+                  [labels.fields.operativeNotes, proc.notes || '']
+                ]
+              },
+              layout: {
+                hLineWidth: () => 0,
+                vLineWidth: () => 0,
+                paddingTop: () => 5,
+                paddingBottom: () => 5,
+                paddingLeft: () => 0,
+                paddingRight: () => 0
+              },
+              margin: [0, 0, 0, 20] as [number, number, number, number]
+            }
+          ]));
         } 
         
         // Fallback: Check if there are manually entered values in the main fields
