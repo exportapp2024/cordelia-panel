@@ -32,7 +32,6 @@ export interface ChatMessageResponse {
         generalHealthHistory?: Record<string, string>;
         preoperativeEvaluation?: Record<string, string>;
         procedureInfo?: Record<string, string>;
-        followUpNotes?: string;
         dischargeRecommendations?: Record<string, string>;
       };
     };
@@ -89,7 +88,6 @@ export async function updateMedicalFile(userId: string, patientId: string, medic
   generalHealthHistory?: Record<string, string>;
   preoperativeEvaluation?: Record<string, string>;
   procedureInfo?: Record<string, string>;
-  followUpNotes?: string;
   dischargeRecommendations?: Record<string, string>;
 }) {
   const url = buildApiUrl(`/users/${userId}/patients/${patientId}/medical-file`);
@@ -103,4 +101,61 @@ export async function updateMedicalFile(userId: string, patientId: string, medic
     throw new Error(errorData.error || 'Failed to update medical file');
   }
   return res.json();
+}
+
+// Appointment API functions
+export interface Appointment {
+  id: string;
+  title: string;
+  description?: string;
+  start_time: string;
+  end_time: string;
+  created_by?: string;
+  patient_id: string;
+  patients?: {
+    id: string;
+    patient_number: number;
+    data: {
+      name?: string;
+      national_id?: string;
+      phone?: string;
+      address?: string;
+    };
+  };
+}
+
+export async function fetchPatientAppointments(userId: string, patientId: string, timeMin?: string, timeMax?: string) {
+  let url = buildApiUrl(`calendar/events/${userId}/patient/${patientId}`);
+  const params = new URLSearchParams();
+  if (timeMin) params.append('timeMin', timeMin);
+  if (timeMax) params.append('timeMax', timeMax);
+  if (params.toString()) url += `?${params.toString()}`;
+  
+  const res = await fetch(url);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: 'Failed to fetch appointments' }));
+    throw new Error(errorData.error || 'Failed to fetch appointments');
+  }
+  return res.json() as Promise<{ success: true; events: Appointment[]; count: number }>;
+}
+
+export async function createPatientAppointment(userId: string, appointmentData: {
+  title: string;
+  date: string;
+  time: string;
+  duration_minutes: number;
+  notes?: string;
+  patient_id: string;
+}) {
+  const url = buildApiUrl(`calendar/events/${userId}`);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(appointmentData)
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: 'Failed to create appointment' }));
+    throw new Error(errorData.error || 'Failed to create appointment');
+  }
+  return res.json() as Promise<{ success: true; event: Appointment; message: string }>;
 }

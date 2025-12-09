@@ -86,8 +86,7 @@ const turkishLabels = {
       generalHealth: '3. Genel Sağlık ve Geçmiş Öykü',
       preoperativeEval: '4. Ameliyat Öncesi Değerlendirme',
       procedureInfo: '5. İşlem Bilgileri',
-      followUp: '6. Takip Notları',
-      discharge: '7. Taburculuk Önerileri'
+      discharge: '6. Taburculuk Önerileri'
     },
     fields: {
       patientNumber: 'Hasta No:',
@@ -98,7 +97,7 @@ const turkishLabels = {
       phoneNumber: 'Telefon No:',
       address: 'Adres:',
       admissionDate: 'Kabul Tarihi:',
-      surgeryDate: 'Ameliyat / İşlem Tarihi:',
+      surgeryDate: 'Rapor Tarihi:',
       dischargeDate: 'Taburculuk Tarihi:',
       lastControlDate: 'Son Klinik Kontrol Tarihi:',
       flightEligibilityDate: 'Uçuşa Elverişlilik Tarihi:',
@@ -115,6 +114,8 @@ const turkishLabels = {
       vitalSigns: 'Vital Bulgular:',
       physicalExam: 'Fizik Muayene:',
       plannedProcedures: 'Planlanan İşlemler:',
+      anesthesiaType: 'Anestezi Tipi:',
+      duration: 'Süre:',
       operativeNotes: 'Operatif Notlar:',
       activityRestrictions: 'Aktivite Kısıtlamaları:'
     }
@@ -181,8 +182,7 @@ const englishLabels = {
       generalHealth: '3. General Health and Medical History',
       preoperativeEval: '4. Preoperative Evaluation',
       procedureInfo: '5. Procedure Information',
-      followUp: '6. Follow-up Notes',
-      discharge: '7. Discharge Recommendations'
+      discharge: '6. Discharge Recommendations'
     },
     fields: {
       patientNumber: 'Patient No:',
@@ -193,7 +193,7 @@ const englishLabels = {
       phoneNumber: 'Phone No:',
       address: 'Address:',
       admissionDate: 'Admission Date:',
-      surgeryDate: 'Surgery / Procedure Date:',
+      surgeryDate: 'Report Date:',
       dischargeDate: 'Discharge Date:',
       lastControlDate: 'Last Clinical Control Date:',
       flightEligibilityDate: 'Flight Eligibility Date:',
@@ -210,6 +210,8 @@ const englishLabels = {
       vitalSigns: 'Vital Signs:',
       physicalExam: 'Physical Examination:',
       plannedProcedures: 'Planned Procedures:',
+      anesthesiaType: 'Anesthesia Type:',
+      duration: 'Duration:',
       operativeNotes: 'Operative Notes:',
       activityRestrictions: 'Activity Restrictions:'
     }
@@ -426,28 +428,82 @@ export const generateEpicrisisDocument = async (
         bold: true,
         margin: [0, 20, 0, 10]
       },
-      {
-        table: {
-          body: [
-            [labels.fields.plannedProcedures, medicalFileData.procedureInfo.plannedProcedures || '___________'],
-            [labels.fields.operativeNotes, medicalFileData.procedureInfo.operativeNotes || '___________']
-          ]
-        },
-        layout: 'noBorders'
-      },
-      
-      // Follow-up Notes Section
-      {
-        text: labels.sections.followUp,
-        fontSize: 14,
-        bold: true,
-        margin: [0, 20, 0, 10]
-      },
-      {
-        text: medicalFileData.followUpNotes || '___________',
-        fontSize: 10,
-        margin: [0, 0, 0, 20]
-      },
+      ...(() => {
+        const procedures = medicalFileData.procedureInfo.procedures || [];
+        
+        // If we have procedures in the list, use them (preferred)
+        if (procedures.length > 0) {
+          const lastProcedures = [...procedures]
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 5);
+            
+          return lastProcedures.map((proc, index) => ([
+            {
+              text: `${index + 1}.`,
+              fontSize: 11,
+              bold: true,
+              margin: [0, 0, 0, 5]
+            },
+            {
+              table: {
+                widths: [150, '*'],
+                body: [
+                  [labels.fields.surgeryDate, formatDate(proc.date)],
+                  [labels.fields.plannedProcedures, proc.description || ''],
+                  [labels.fields.anesthesiaType, proc.anesthesiaType || ''],
+                  [labels.fields.duration, proc.duration || ''],
+                  [labels.fields.operativeNotes, proc.notes || '']
+                ]
+              },
+              layout: {
+                hLineWidth: () => 0,
+                vLineWidth: () => 0,
+                paddingTop: () => 5,
+                paddingBottom: () => 5,
+                paddingLeft: () => 0,
+                paddingRight: () => 0
+              },
+              margin: [0, 0, 0, 20] as [number, number, number, number]
+            }
+          ]));
+        } 
+        
+        // Fallback: Check if there are manually entered values in the main fields
+        // Only show if at least one field has content
+        const hasManualContent = 
+          medicalFileData.procedureInfo.plannedProcedures || 
+          medicalFileData.procedureInfo.anesthesiaType || 
+          medicalFileData.procedureInfo.duration || 
+          medicalFileData.procedureInfo.operativeNotes;
+          
+        if (hasManualContent) {
+          return [{
+            table: {
+              widths: [150, '*'],
+              body: [
+                [labels.fields.plannedProcedures, medicalFileData.procedureInfo.plannedProcedures || '___________'],
+                [labels.fields.anesthesiaType, medicalFileData.procedureInfo.anesthesiaType || '___________'],
+                [labels.fields.duration, medicalFileData.procedureInfo.duration || '___________'],
+                [labels.fields.operativeNotes, medicalFileData.procedureInfo.operativeNotes || '___________']
+              ]
+            },
+            layout: {
+              hLineWidth: () => 0,
+              vLineWidth: () => 0,
+              paddingTop: () => 5,
+              paddingBottom: () => 5,
+              paddingLeft: () => 0,
+              paddingRight: () => 0
+            }
+          }];
+        }
+        
+        // If absolutely no data, show empty placeholders
+        return [{
+          text: '___________',
+          margin: [0, 0, 0, 10]
+        }];
+      })(),
       
       // Discharge Recommendations Section
       {
@@ -736,7 +792,6 @@ export const generateRestReportDocument = async (
           body: [
             [labels.fields.diagnosis, medicalFileData.admissionReason || '___________'],
             [labels.fields.treatment, medicalFileData.procedureInfo.plannedProcedures || '___________'],
-            [labels.fields.currentStatus, medicalFileData.followUpNotes || '___________'],
             [labels.fields.medications, medicalFileData.dischargeRecommendations.medications || '___________']
           ]
         },

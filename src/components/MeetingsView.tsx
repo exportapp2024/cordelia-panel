@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePatients } from '../hooks/usePatients';
 import { buildApiUrl } from '../lib/api';
-import { Calendar, momentLocalizer, SlotInfo, Event as RBCEvent, Views } from 'react-big-calendar';
+import { Calendar, momentLocalizer, SlotInfo, Event as RBCEvent, Views, View } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
 import 'moment/locale/tr';
@@ -84,11 +85,16 @@ export const MeetingsView: React.FC = () => {
   // const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentView, setCurrentView] = useState<View>(Views.WEEK);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [syncingEventId, setSyncingEventId] = useState<string | null>(null);
   const [deepLinkParams, setDeepLinkParams] = useState<{ date?: string; appointmentId?: string; action?: string } | null>(null);
   const [loadedDateRange, setLoadedDateRange] = useState<{ min: Date; max: Date } | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [filterPatientIds, setFilterPatientIds] = useState<string[]>([]);
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
 
   // Convert CalendarEvent to react-big-calendar Event format
   const convertToRBCEvent = (event: CalendarEvent): CalendarEventRBC => {
@@ -99,8 +105,14 @@ export const MeetingsView: React.FC = () => {
       ? new Date(event.end.dateTime) 
       : new Date(event.end.date || '');
 
+    // Add patient name to title if available
+    const patientName = event.patient?.data?.name;
+    const displayTitle = patientName 
+      ? `${patientName}: ${event.summary}` 
+      : event.summary;
+
     return {
-      title: event.summary,
+      title: displayTitle,
       start: startDate,
       end: endDate,
       resource: event
@@ -185,16 +197,18 @@ export const MeetingsView: React.FC = () => {
     }
   }, [loadedDateRange, fetchEvents]);
 
-  // Navigate to previous week
-  const handlePreviousWeek = () => {
-    const newDate = moment(currentDate).subtract(1, 'week').toDate();
+  // Navigate to previous period (week or month based on view)
+  const handlePreviousPeriod = () => {
+    const period = currentView === Views.MONTH ? 'month' : 'week';
+    const newDate = moment(currentDate).subtract(1, period).toDate();
     setCurrentDate(newDate);
     checkAndLoadEventsForDate(newDate);
   };
 
-  // Navigate to next week
-  const handleNextWeek = () => {
-    const newDate = moment(currentDate).add(1, 'week').toDate();
+  // Navigate to next period (week or month based on view)
+  const handleNextPeriod = () => {
+    const period = currentView === Views.MONTH ? 'month' : 'week';
+    const newDate = moment(currentDate).add(1, period).toDate();
     setCurrentDate(newDate);
     checkAndLoadEventsForDate(newDate);
   };
@@ -202,6 +216,13 @@ export const MeetingsView: React.FC = () => {
   // Navigate to today
   const handleToday = () => {
     setCurrentDate(new Date());
+  };
+
+  // Handle view change
+  const handleViewChange = (view: string) => {
+    if (view === Views.WEEK || view === Views.MONTH) {
+      setCurrentView(view);
+    }
   };
 
   // Handle slot selection (clicking on empty time slot)
@@ -385,27 +406,36 @@ export const MeetingsView: React.FC = () => {
     }
   };
 
-  // Format week range for display (force Turkish via Intl)
-  const getWeekRange = () => {
-    const start = moment(currentDate).startOf('week').toDate();
-    const end = moment(currentDate).endOf('week').toDate();
-
+  // Format date range for display based on view (force Turkish via Intl)
+  const getDateRange = () => {
     const fmt = (d: Date, opts: Intl.DateTimeFormatOptions) =>
       d.toLocaleDateString('tr-TR', opts);
 
-    // Mobile: Show shorter format
-    if (isMobile) {
-      if (start.getMonth() === end.getMonth()) {
-        return `${fmt(start, { day: 'numeric' })} - ${fmt(end, { day: 'numeric', month: 'short' })}`;
+    if (currentView === Views.MONTH) {
+      // Month view: Show month name and year
+      if (isMobile) {
+        return fmt(currentDate, { month: 'long', year: 'numeric' });
       }
-      return `${fmt(start, { day: 'numeric', month: 'short' })} - ${fmt(end, { day: 'numeric', month: 'short' })}`;
-    }
+      return fmt(currentDate, { month: 'long', year: 'numeric' });
+    } else {
+      // Week view: Show week range
+      const start = moment(currentDate).startOf('week').toDate();
+      const end = moment(currentDate).endOf('week').toDate();
 
-    // Desktop: Show full week range
-    if (start.getMonth() === end.getMonth()) {
-      return `${fmt(start, { day: 'numeric' })} - ${fmt(end, { day: 'numeric', month: 'long', year: 'numeric' })}`;
+      // Mobile: Show shorter format
+      if (isMobile) {
+        if (start.getMonth() === end.getMonth()) {
+          return `${fmt(start, { day: 'numeric' })} - ${fmt(end, { day: 'numeric', month: 'short' })}`;
+        }
+        return `${fmt(start, { day: 'numeric', month: 'short' })} - ${fmt(end, { day: 'numeric', month: 'short' })}`;
+      }
+
+      // Desktop: Show full week range
+      if (start.getMonth() === end.getMonth()) {
+        return `${fmt(start, { day: 'numeric' })} - ${fmt(end, { day: 'numeric', month: 'long', year: 'numeric' })}`;
+      }
+      return `${fmt(start, { day: 'numeric', month: 'long' })} - ${fmt(end, { day: 'numeric', month: 'long', year: 'numeric' })}`;
     }
-    return `${fmt(start, { day: 'numeric', month: 'long' })} - ${fmt(end, { day: 'numeric', month: 'long', year: 'numeric' })}`;
   };
 
   // Connection checks removed (local calendar always available)
@@ -464,6 +494,23 @@ export const MeetingsView: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setShowFilterDropdown(false);
+      }
+    };
+
+    if (showFilterDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFilterDropdown]);
 
   // Scroll to center current day on mobile with horizontal scrolling
   useEffect(() => {
@@ -721,27 +768,123 @@ export const MeetingsView: React.FC = () => {
               </button>
               <div className="flex items_center">
                 <button
-                  onClick={handlePreviousWeek}
+                  onClick={handlePreviousPeriod}
                   className="p-1 sm:p-1.5 hover:bg-gray-100 rounded transition-colors"
-                  title="Önceki hafta"
+                  title={currentView === Views.MONTH ? "Önceki ay" : "Önceki hafta"}
                 >
                   <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                 </button>
                 <button
-                  onClick={handleNextWeek}
+                  onClick={handleNextPeriod}
                   className="p-1 sm:p-1.5 hover:bg-gray-100 rounded transition-colors"
-                  title="Sonraki hafta"
+                  title={currentView === Views.MONTH ? "Sonraki ay" : "Sonraki hafta"}
                 >
                   <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                 </button>
                     </div>
               <h2 className="text-sm sm:text-xl font-normal text-gray-900">
-                {getWeekRange()}
+                {getDateRange()}
               </h2>
+              {/* View Toggle Buttons */}
+              <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden ml-2 sm:ml-4">
+                <button
+                  onClick={() => handleViewChange(Views.WEEK)}
+                  className={`px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                    currentView === Views.WEEK
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Hafta
+                </button>
+                <button
+                  onClick={() => handleViewChange(Views.MONTH)}
+                  className={`px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors border-l border-gray-300 ${
+                    currentView === Views.MONTH
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Ay
+                </button>
+              </div>
                   </div>
                   
             {/* Actions on the right */}
             <div className="flex items-center gap-1 sm:gap-2">
+              {/* Patient Filter Dropdown */}
+              <div className="relative" ref={filterDropdownRef}>
+                <button
+                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                  className="bg-white border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors flex items-center justify-center gap-1 sm:gap-2"
+                  style={{ minWidth: isMobile ? '40px' : 'auto' }}
+                  title={isMobile ? (filterPatientIds.length > 0 ? `${filterPatientIds.length} hasta seçili` : 'Hasta Filtrele') : undefined}
+                >
+                  <Filter className="w-4 h-4 text-gray-500" />
+                  {!isMobile && (
+                    <span>
+                      {filterPatientIds.length === 0 
+                        ? 'Tüm Hastalar' 
+                        : filterPatientIds.length === 1
+                          ? patients.find(p => p.id === filterPatientIds[0])?.data.name || '1 Hasta'
+                          : `${filterPatientIds.length} Hasta`
+                      }
+                    </span>
+                  )}
+                  {filterPatientIds.length > 0 && (
+                    <span className="bg-emerald-600 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                      {filterPatientIds.length}
+                    </span>
+                  )}
+                </button>
+                
+                {showFilterDropdown && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                    <div className="p-2 space-y-1">
+                      <label className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={filterPatientIds.length === 0}
+                          onChange={(e) => {
+                            setIsFiltering(true);
+                            if (e.target.checked) {
+                              setFilterPatientIds([]);
+                            }
+                            setTimeout(() => setIsFiltering(false), 300);
+                          }}
+                          className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                        />
+                        <span className="text-sm font-medium text-gray-900">Tüm Hastalar</span>
+                      </label>
+                      {patients.map((patient) => (
+                        <label
+                          key={patient.id}
+                          className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filterPatientIds.includes(patient.id)}
+                            onChange={(e) => {
+                              setIsFiltering(true);
+                              if (e.target.checked) {
+                                setFilterPatientIds([...filterPatientIds, patient.id]);
+                              } else {
+                                setFilterPatientIds(filterPatientIds.filter(id => id !== patient.id));
+                              }
+                              setTimeout(() => setIsFiltering(false), 300);
+                            }}
+                            className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                          />
+                          <span className="text-sm text-gray-700">
+                            {patient.patient_number ? `#${patient.patient_number} - ` : ''}
+                            {patient.data.name || 'İsimsiz Hasta'}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-1 sm:space-x-2"
@@ -766,20 +909,36 @@ export const MeetingsView: React.FC = () => {
           </div>
                   
           {/* Calendar Container - flexes to fill remaining space */}
-          <div className="flex-1 overflow-hidden">
+          <div className={`flex-1 overflow-hidden transition-opacity duration-300 ${isFiltering ? 'opacity-50' : 'opacity-100'}`}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={currentView}
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -30 }}
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                className="h-full"
+              >
             <DnDCalendar
               localizer={localizer}
-              events={events.map(convertToRBCEvent)}
+              events={events
+                .filter(event => {
+                  if (filterPatientIds.length === 0) return true; // Show all if no filter
+                  return event.patient?.id && filterPatientIds.includes(event.patient.id);
+                })
+                .map(convertToRBCEvent)}
               startAccessor={(e) => (e as CalendarEventRBC).start as Date}
               endAccessor={(e) => (e as CalendarEventRBC).end as Date}
               defaultView={Views.WEEK}
-              views={[Views.WEEK]}
+              view={currentView}
+              views={[Views.WEEK, Views.MONTH]}
               culture="tr"
               date={currentDate}
               onNavigate={(date) => {
                 setCurrentDate(date);
                 checkAndLoadEventsForDate(date);
               }}
+              onView={handleViewChange}
               onSelectSlot={handleSelectSlot}
               onSelectEvent={(ev) => handleSelectEvent(ev as CalendarEventRBC)}
               onEventDrop={(args) => handleEventDrop({
@@ -857,7 +1016,9 @@ export const MeetingsView: React.FC = () => {
                 showMore: (total) => `+${total} daha`,
               }}
             />
-                      </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
       )}
 
@@ -1088,6 +1249,7 @@ export const MeetingsView: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

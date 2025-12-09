@@ -41,11 +41,21 @@ export interface PreoperativeEvaluation {
   otherNotes: string;
 }
 
+export interface ProcedureItem {
+  id: string;
+  date: string; // ISO format date string
+  description: string;
+  anesthesiaType: string;
+  duration: string;
+  notes: string;
+}
+
 export interface ProcedureInfo {
   plannedProcedures: string;
   anesthesiaType: string;
   duration: string;
   operativeNotes: string;
+  procedures?: ProcedureItem[]; // Array of performed procedures
 }
 
 export interface DischargeRecommendations {
@@ -61,7 +71,6 @@ export interface MedicalFileData {
   generalHealthHistory: GeneralHealthHistory;
   preoperativeEvaluation: PreoperativeEvaluation;
   procedureInfo: ProcedureInfo;
-  followUpNotes: string;
   dischargeRecommendations: DischargeRecommendations;
 }
 
@@ -126,7 +135,6 @@ export const MEDICAL_FILE_TABS = [
   { id: 'generalHealthHistory', label: 'Genel Sağlık ve Geçmiş Öykü', icon: 'Heart' },
   { id: 'preoperativeEvaluation', label: 'Preoperatif / İlk Klinik Değerlendirme', icon: 'Stethoscope' },
   { id: 'procedureInfo', label: 'Yapılan İşlem / Tedavi Bilgileri', icon: 'Activity' },
-  { id: 'followUpNotes', label: 'Takip Notları', icon: 'Clipboard' },
   { id: 'dischargeRecommendations', label: 'Taburculuk ve Öneriler', icon: 'CheckCircle' }
 ];
 
@@ -175,9 +183,9 @@ export const createEmptyMedicalFile = (): MedicalFileData => ({
     plannedProcedures: '',
     anesthesiaType: '',
     duration: '',
-    operativeNotes: ''
+    operativeNotes: '',
+    procedures: []
   },
-  followUpNotes: '',
   dischargeRecommendations: {
     medications: '',
     woundCare: '',
