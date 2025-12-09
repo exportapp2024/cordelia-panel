@@ -21,7 +21,6 @@ import {
   Trash2,
   Check,
   Syringe,
-  MoreVertical,
   MoreHorizontal,
   ChevronDown,
   ChevronUp
@@ -563,7 +562,7 @@ const PatientMedicalFileView: React.FC = () => {
           </div>
         );
 
-      case 'procedureInfo':
+      case 'procedureInfo': {
         const sortedProcedures = [...(medicalFileData.procedureInfo.procedures || [])].sort((a, b) => {
           // Sort by date descending (newest first)
           return new Date(b.date).getTime() - new Date(a.date).getTime();
@@ -602,20 +601,24 @@ const PatientMedicalFileView: React.FC = () => {
             </div>
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {MEDICAL_FILE_FIELDS.procedureInfo.slice(0, 3).map((field) => (
-                  <div key={field.key} className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      {field.label}
-                    </label>
-                    <input
-                      type="text"
-                      value={medicalFileData.procedureInfo[field.key as keyof typeof medicalFileData.procedureInfo] || ''}
-                      onChange={(e) => handleFieldChange('procedureInfo', field.key, e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                ))}
+                {MEDICAL_FILE_FIELDS.procedureInfo.slice(0, 3).map((field) => {
+                  const rawValue = medicalFileData.procedureInfo[field.key as keyof typeof medicalFileData.procedureInfo];
+                  const value = typeof rawValue === 'string' ? rawValue : '';
+                  return (
+                    <div key={field.key} className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        {field.label}
+                      </label>
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => handleFieldChange('procedureInfo', field.key, e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        disabled={isReadOnly}
+                      />
+                    </div>
+                  );
+                })}
               </div>
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
@@ -870,6 +873,7 @@ const PatientMedicalFileView: React.FC = () => {
             </div>
           </div>
         );
+      }
 
       case 'dischargeRecommendations':
         return (
