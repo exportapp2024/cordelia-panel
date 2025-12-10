@@ -599,7 +599,8 @@ export const PatientsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Hastalar</h1>
@@ -1072,8 +1073,9 @@ export const PatientsView: React.FC = () => {
             </div>
           </>
         )}
+      </div>
 
-        <AddPatientModal
+      <AddPatientModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onAdd={handleAddPatient}
@@ -1200,6 +1202,6 @@ export const PatientsView: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

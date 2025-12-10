@@ -166,7 +166,8 @@ export const SettingsView: React.FC = () => {
 
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Ayarlar</h1>
         <p className="text-gray-600">Hesap tercihlerinizi ve güvenlik ayarlarınızı yönetin</p>
@@ -273,6 +274,7 @@ export const SettingsView: React.FC = () => {
             <p className="text-sm text-red-600">Hesabınızı ve tüm verilerinizi kalıcı olarak silin</p>
           </button>
         </div>
+      </div>
       </div>
 
       {/* Password Change Modal */}
@@ -480,6 +482,6 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

@@ -734,7 +734,8 @@ export const MeetingsView: React.FC = () => {
   // Connection gating and Google connect UI removed
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify_between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Randevular</h1>
@@ -816,7 +817,7 @@ export const MeetingsView: React.FC = () => {
               <div className="relative" ref={filterDropdownRef}>
                 <button
                   onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                  className="bg-white border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors flex items-center justify-center gap-1 sm:gap-2"
+                  className="bg-gray-100 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors flex items-center justify-center gap-1 sm:gap-2"
                   style={{ minWidth: isMobile ? '40px' : 'auto' }}
                   title={isMobile ? (filterPatientIds.length > 0 ? `${filterPatientIds.length} hasta seçili` : 'Hasta Filtrele') : undefined}
                 >
@@ -1021,6 +1022,7 @@ export const MeetingsView: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
 
       {/* Create Appointment Modal */}
       {showCreateModal && (
@@ -1249,7 +1251,6 @@ export const MeetingsView: React.FC = () => {
           </div>
         </div>
       )}
-
-    </div>
+    </>
   );
 };
