@@ -1025,9 +1025,9 @@ export const MeetingsView: React.FC = () => {
       {/* Create Appointment Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Yeni Randevu Oluştur</h2>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[calc(100vh-2rem)] flex flex-col">
+            <div className="flex items-center justify-between p-3 sm:p-6 border-b border-gray-200 flex-shrink-0">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Yeni Randevu Oluştur</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -1036,7 +1036,7 @@ export const MeetingsView: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Başlık <span className="text-red-500">*</span>
@@ -1121,20 +1121,20 @@ export const MeetingsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+            <div className="flex items-center justify-end space-x-2 sm:space-x-3 p-3 sm:p-6 border-t border-gray-200 flex-shrink-0 bg-white">
               <button
                 onClick={() => {
                   setShowCreateModal(false);
                   setFormData({ title: '', date: '', time: '', duration: '60', notes: '', patient_id: '' });
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 İptal
               </button>
               <button
                 onClick={createAppointment}
                 disabled={creating || !formData.title || !formData.date || !formData.time || !formData.patient_id}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
                 {creating ? (
                   <>
@@ -1153,9 +1153,9 @@ export const MeetingsView: React.FC = () => {
       {/* Event Details Modal */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Randevu Detayları</h2>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[calc(100vh-2rem)] flex flex-col">
+            <div className="flex items-center justify-between p-3 sm:p-6 border-b border-gray-200 flex-shrink-0">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Randevu Detayları</h2>
               <button
                 onClick={() => setSelectedEvent(null)}
                 className="text-gray-400 hover:text-gray-600"
@@ -1164,7 +1164,7 @@ export const MeetingsView: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   {selectedEvent.summary}
@@ -1222,7 +1222,7 @@ export const MeetingsView: React.FC = () => {
               )}
             </div>
 
-            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+            <div className="flex items-center justify-end space-x-2 sm:space-x-3 p-3 sm:p-6 border-t border-gray-200 flex-shrink-0 bg-white">
               {canModifyEvent(selectedEvent) && (
                 <>
                   <button
@@ -1233,7 +1233,7 @@ export const MeetingsView: React.FC = () => {
                       }
                     }}
                     disabled={deletingEvent === selectedEvent.id}
-                    className="px-4 py-2 border border-red-300 rounded-lg text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-red-300 rounded-lg text-red-700 hover:bg-red-50 disabled:opacity-50"
                   >
                     {deletingEvent === selectedEvent.id ? 'Siliniyor...' : 'Sil'}
                   </button>
@@ -1241,7 +1241,7 @@ export const MeetingsView: React.FC = () => {
               )}
               <button
                 onClick={() => setSelectedEvent(null)}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
               >
                 Kapat
               </button>
