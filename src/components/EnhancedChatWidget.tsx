@@ -1,5 +1,5 @@
 import React from "react";
-import { MessageCircle, X, Send, Download } from "lucide-react";
+import { MessageCircle, X, Send, Download, History, Trash2 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { sendChatMessage, fetchChatHistory } from "../lib/api";
 import { MedicalFileData } from "../types/medicalFile";
@@ -8,6 +8,22 @@ import {
   generateFitToFlightDocument,
   generateRestReportDocument,
 } from "../utils/documentGenerator";
+
+interface ChatHistoryItem {
+  threadId: string;
+  title: string;
+  createdAt: number;
+  lastMessageAt: number;
+  messages: Array<{
+    role: "user" | "assistant";
+    content: string;
+    id?: string;
+    created_at?: string;
+  }>;
+}
+
+const STORAGE_KEY = "cordelia-chat-history";
+const MAX_TITLE_LENGTH = 40;
 
 interface EnhancedChatWidgetProps {
   medicalFileData?: MedicalFileData;
@@ -31,10 +47,91 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
       created_at?: string;
     }>
   >([]);
+  const [chatHistory, setChatHistory] = React.useState<ChatHistoryItem[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const chatPanelRef = React.useRef<HTMLDivElement | null>(null);
   const floatingButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const historyDropdownRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Local Storage Utility Functions
+  const loadChatHistory = React.useCallback((): ChatHistoryItem[] => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as ChatHistoryItem[];
+        // Sort by lastMessageAt descending (newest first)
+        return parsed.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+      }
+    } catch (error) {
+      console.error("Error loading chat history:", error);
+    }
+    return [];
+  }, []);
+
+  const saveChatToHistory = React.useCallback(
+    (chat: ChatHistoryItem) => {
+      try {
+        const history = loadChatHistory();
+        const existingIndex = history.findIndex(
+          (item) => item.threadId === chat.threadId
+        );
+        
+        if (existingIndex >= 0) {
+          // Update existing chat
+          history[existingIndex] = chat;
+        } else {
+          // Add new chat
+          history.push(chat);
+        }
+        
+        // Sort by lastMessageAt descending
+        history.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+        setChatHistory(history);
+      } catch (error) {
+        console.error("Error saving chat to history:", error);
+      }
+    },
+    [loadChatHistory]
+  );
+
+  const deleteChatFromHistory = React.useCallback((threadIdToDelete: string) => {
+    try {
+      const history = loadChatHistory();
+      const filtered = history.filter(
+        (item) => item.threadId !== threadIdToDelete
+      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+      setChatHistory(filtered);
+      
+      // If deleted chat was active, clear it
+      if (threadId === threadIdToDelete) {
+        setThreadId(undefined);
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error("Error deleting chat from history:", error);
+    }
+  }, [loadChatHistory, threadId]);
+
+  const getChatById = React.useCallback(
+    (threadIdToFind: string): ChatHistoryItem | undefined => {
+      const history = loadChatHistory();
+      return history.find((item) => item.threadId === threadIdToFind);
+    },
+    [loadChatHistory]
+  );
+
+  const createChatTitle = React.useCallback((firstMessage: string): string => {
+    const trimmed = firstMessage.trim();
+    if (trimmed.length <= MAX_TITLE_LENGTH) {
+      return trimmed;
+    }
+    return trimmed.substring(0, MAX_TITLE_LENGTH) + "...";
+  }, []);
 
   const renderMarkdownHtml = React.useCallback((raw: string): string => {
     const escapeHtml = (s: string) =>
@@ -61,6 +158,25 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
   }, []);
 
   const onToggle = () => setOpen((v) => !v);
+
+  const loadChat = React.useCallback(
+    (threadIdToLoad: string) => {
+      const chat = getChatById(threadIdToLoad);
+      if (chat) {
+        setThreadId(threadIdToLoad);
+        setMessages(chat.messages);
+        setIsHistoryOpen(false);
+      }
+    },
+    [getChatById]
+  );
+
+  const startNewChat = React.useCallback(() => {
+    setThreadId(undefined);
+    setMessages([]);
+    setIsHistoryOpen(false);
+    textareaRef.current?.focus();
+  }, []);
 
   const adjustTextareaHeight = React.useCallback(() => {
     if (textareaRef.current) {
@@ -100,10 +216,33 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
         };
       });
       setMessages(mapped);
+      
+      // Update local storage with API data
+      const existingChat = getChatById(threadId);
+      if (mapped.length > 0) {
+        const chatItem: ChatHistoryItem = {
+          threadId,
+          title: existingChat?.title || createChatTitle(mapped[0]?.content || ""),
+          createdAt: existingChat?.createdAt || Date.now(),
+          lastMessageAt: Date.now(),
+          messages: mapped,
+        };
+        saveChatToHistory(chatItem);
+      }
     } catch {
-      // noop
+      // If API fails, try to load from local storage
+      const localChat = getChatById(threadId);
+      if (localChat) {
+        setMessages(localChat.messages);
+      }
     }
-  }, [user, threadId]);
+  }, [user, threadId, getChatById, createChatTitle, saveChatToHistory]);
+
+  // Load chat history on mount
+  React.useEffect(() => {
+    const history = loadChatHistory();
+    setChatHistory(history);
+  }, [loadChatHistory]);
 
   React.useEffect(() => {
     if (open) {
@@ -146,6 +285,27 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
     };
   }, [open]);
 
+  // Close history dropdown when clicking outside
+  React.useEffect(() => {
+    if (!isHistoryOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      
+      if (historyDropdownRef.current?.contains(target)) {
+        return;
+      }
+      
+      setIsHistoryOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isHistoryOpen]);
+
   const sendMessage = async () => {
     if (!user || !input.trim()) return;
     const text = input.trim();
@@ -155,7 +315,9 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.overflowY = "hidden";
     }
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    
+    const userMessage = { role: "user" as const, content: text };
+    setMessages((prev) => [...prev, userMessage]);
     setLoading(true);
 
     try {
@@ -164,7 +326,13 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
         threadId,
         message: text,
       });
-      if (!threadId) setThreadId(res.thread_id);
+      
+      const newThreadId = res.thread_id;
+      const isNewChat = !threadId;
+      
+      if (isNewChat) {
+        setThreadId(newThreadId);
+      }
 
       let displayMessage = res.message;
 
@@ -186,16 +354,53 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
         displayMessage += `\n\n[DOCUMENT:${JSON.stringify(docInfo)}]`;
       }
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: displayMessage },
-      ]);
+      const assistantMessage = { role: "assistant" as const, content: displayMessage };
+      setMessages((prev) => {
+        const updatedMessages = [...prev, assistantMessage];
+        
+        // Save to local storage
+        const finalThreadId = newThreadId || threadId;
+        if (finalThreadId) {
+          const existingChat = getChatById(finalThreadId);
+          
+          const chatItem: ChatHistoryItem = {
+            threadId: finalThreadId,
+            title: isNewChat
+              ? createChatTitle(text)
+              : existingChat?.title || createChatTitle(text),
+            createdAt: isNewChat ? Date.now() : (existingChat?.createdAt || Date.now()),
+            lastMessageAt: Date.now(),
+            messages: updatedMessages,
+          };
+          
+          saveChatToHistory(chatItem);
+        }
+        
+        return updatedMessages;
+      });
     } catch (error) {
       console.error("Chat error:", error);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Üzgünüm, bir hata oluştu." },
-      ]);
+      const errorMessage = { role: "assistant" as const, content: "Üzgünüm, bir hata oluştu." };
+      setMessages((prev) => {
+        const updatedMessages = [...prev, errorMessage];
+        
+        // Save error message to history if threadId exists
+        if (threadId) {
+          const existingChat = getChatById(threadId);
+          
+          const chatItem: ChatHistoryItem = {
+            threadId,
+            title: existingChat?.title || createChatTitle(text),
+            createdAt: existingChat?.createdAt || Date.now(),
+            lastMessageAt: Date.now(),
+            messages: updatedMessages,
+          };
+          
+          saveChatToHistory(chatItem);
+        }
+        
+        return updatedMessages;
+      });
     } finally {
       setLoading(false);
     }
@@ -225,7 +430,7 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
           ref={chatPanelRef}
           className="fixed inset-0 md:inset-auto md:bottom-24 md:right-6 z-50 md:z-40 w-full md:w-96 md:max-w-[95vw] bg-white md:rounded-xl md:shadow-2xl md:border md:border-gray-200 overflow-hidden flex flex-col h-full md:h-[560px]"
         >
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50 relative">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">
                 Cordelia AI
@@ -236,12 +441,81 @@ export const EnhancedChatWidget: React.FC<EnhancedChatWidgetProps> = ({
                   : "Randevu ve hasta işlemleri için yazın"}
               </p>
             </div>
-            <button
-              onClick={onToggle}
-              className="md:hidden p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="relative" ref={historyDropdownRef}>
+                <button
+                  onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  aria-label="Chat geçmişi"
+                >
+                  <History className="w-5 h-5" />
+                </button>
+                {isHistoryOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                    <div className="p-2">
+                      <button
+                        onClick={startNewChat}
+                        className="w-full px-3 py-2 text-left text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                      >
+                        + Yeni Sohbet
+                      </button>
+                    </div>
+                    {chatHistory.length === 0 ? (
+                      <div className="px-3 py-4 text-center text-sm text-gray-500">
+                        Henüz chat geçmişi yok
+                      </div>
+                    ) : (
+                      <div className="border-t border-gray-200">
+                        {chatHistory.map((chat) => (
+                          <div
+                            key={chat.threadId}
+                            className={`group flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors ${
+                              threadId === chat.threadId ? "bg-emerald-50" : ""
+                            }`}
+                          >
+                            <button
+                              onClick={() => loadChat(chat.threadId)}
+                              className="flex-1 text-left min-w-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">
+                                {chat.title}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {new Date(chat.lastMessageAt).toLocaleDateString(
+                                  "tr-TR",
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )}
+                              </div>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteChatFromHistory(chat.threadId);
+                              }}
+                              className="ml-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                              aria-label="Chat'i sil"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={onToggle}
+                className="md:hidden p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           <div className="p-3 space-y-3 overflow-auto flex-1">

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Calendar, FileEdit, Phone, Loader2, AlertCircle, RefreshCw, MoreHorizontal, Edit3, Trash2, FileText, Plus } from 'lucide-react';
+import { User, Calendar, FileEdit, Phone, Loader2, AlertCircle, RefreshCw, MoreHorizontal, Edit3, Trash2, FileText, Plus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePatients } from '../hooks/usePatients';
 import { useAuth } from '../hooks/useAuth';
@@ -417,11 +417,20 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-        <h3 className="text-lg font-semibold mb-4">Yeni Hasta Ekle</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4 sm:px-6 py-8 sm:py-12">
+      <div className="bg-white rounded-lg w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden shadow-2xl">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
+          <h3 className="text-lg font-semibold">Yeni Hasta Ekle</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 sm:hidden"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               İsim *
@@ -500,8 +509,9 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
               disabled={loading}
             />
           </div>
+          </div>
           
-          <div className="flex space-x-3 pt-4">
+          <div className="flex space-x-3 p-4 sm:p-6 pt-0 border-t border-gray-200 flex-shrink-0 bg-white">
             <button
               type="button"
               onClick={onClose}
@@ -589,7 +599,8 @@ export const PatientsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Hastalar</h1>
@@ -1062,8 +1073,9 @@ export const PatientsView: React.FC = () => {
             </div>
           </>
         )}
+      </div>
 
-        <AddPatientModal
+      <AddPatientModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onAdd={handleAddPatient}
@@ -1190,6 +1202,6 @@ export const PatientsView: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

@@ -1063,9 +1063,13 @@ const PatientMedicalFileView: React.FC = () => {
             {/* Appointments Button */}
             <button
               onClick={() => setShowAppointments(true)}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 mb-4"
+              className={`w-full py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 mb-4 border ${
+                showAppointments
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border-transparent'
+              }`}
             >
-              <Calendar className="w-5 h-5" />
+              <Calendar className={`w-4 h-4 ${showAppointments ? 'text-emerald-600' : 'text-white'}`} />
               <span>Randevular</span>
             </button>
 
@@ -1080,15 +1084,20 @@ const PatientMedicalFileView: React.FC = () => {
                 {MEDICAL_FILE_TABS.map((tab) => (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
+                      onClick={() => {
+                        if (showAppointments) {
+                          setShowAppointments(false);
+                        }
+                        setActiveTab(tab.id);
+                      }}
                       className={`${
-                        activeTab === tab.id
+                        activeTab === tab.id && !showAppointments
                           ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                           : 'text-gray-700 hover:bg-gray-50 border-gray-200'
                       } flex-shrink-0 px-4 py-3 rounded-lg border transition-colors flex flex-col items-center space-y-1 min-w-[100px]`}
                     >
                       <div className={`${
-                        activeTab === tab.id ? 'text-emerald-600' : 'text-gray-400'
+                        activeTab === tab.id && !showAppointments ? 'text-emerald-600' : 'text-gray-400'
                       }`}>
                         {getTabIcon(tab.icon)}
                       </div>
@@ -1105,15 +1114,20 @@ const PatientMedicalFileView: React.FC = () => {
                 {MEDICAL_FILE_TABS.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      if (showAppointments) {
+                        setShowAppointments(false);
+                      }
+                      setActiveTab(tab.id);
+                    }}
                     className={`${
-                      activeTab === tab.id
+                      activeTab === tab.id && !showAppointments
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                         : 'text-gray-700 hover:bg-gray-50 border-transparent'
                     } w-full text-left px-4 py-3 rounded-lg border transition-colors mb-1 flex items-center space-x-3`}
                   >
                     <div className={`${
-                      activeTab === tab.id ? 'text-emerald-600' : 'text-gray-400'
+                      activeTab === tab.id && !showAppointments ? 'text-emerald-600' : 'text-gray-400'
                     } flex-shrink-0`}>
                       {getTabIcon(tab.icon)}
                     </div>
@@ -1161,12 +1175,6 @@ const PatientMedicalFileView: React.FC = () => {
                             />
                           </button>
                         </div>
-                        <button
-                          onClick={() => setShowAppointments(false)}
-                          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap"
-                        >
-                          Dosyaya Dön
-                        </button>
                         <button
                           onClick={() => setShowCreateAppointmentModal(true)}
                           className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2 whitespace-nowrap"
@@ -1387,9 +1395,9 @@ const PatientMedicalFileView: React.FC = () => {
       {/* Create Appointment Modal */}
       {showCreateAppointmentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Yeni Randevu Oluştur</h2>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[calc(100vh-2rem)] flex flex-col">
+            <div className="flex items-center justify-between p-3 sm:p-6 border-b border-gray-200 flex-shrink-0">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Yeni Randevu Oluştur</h2>
               <button
                 onClick={() => {
                   setShowCreateAppointmentModal(false);
@@ -1401,7 +1409,7 @@ const PatientMedicalFileView: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Hasta
@@ -1479,20 +1487,20 @@ const PatientMedicalFileView: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+            <div className="flex items-center justify-end space-x-2 sm:space-x-3 p-3 sm:p-6 border-t border-gray-200 flex-shrink-0 bg-white">
               <button
                 onClick={() => {
                   setShowCreateAppointmentModal(false);
                   setAppointmentFormData({ title: '', date: '', time: '', duration: '60', notes: '' });
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 İptal
               </button>
               <button
                 onClick={handleCreateAppointment}
                 disabled={creatingAppointment || !appointmentFormData.title || !appointmentFormData.date || !appointmentFormData.time}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
                 {creatingAppointment ? (
                   <>
