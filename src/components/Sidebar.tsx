@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Settings, Users, LogOut, Menu, X } from 'lucide-react';
+import { Calendar, Settings, Users, LogOut, Menu, X, Clock } from 'lucide-react';
 import { ViewType } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import cordeliaLogo from '../assets/cordelia.png';
@@ -102,6 +102,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
             })}
           </nav>
 
+          {/* Membership Status Card */}
+          <div className="p-4">
+            <div 
+              className="membership-anim border-2 border-emerald-400 rounded-xl p-4 shadow-lg cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] relative overflow-hidden"
+              onClick={() => {
+                // Navigate to pricing or renewal page when implemented
+                console.log('Membership renewal clicked');
+              }}
+            >
+              <div className="flex items-center justify-center mb-1.5">
+                <Clock className="w-4 h-4 text-white mr-1.5" />
+                <span className="text-xs font-semibold text-white uppercase tracking-wide">Üyelik Durumu</span>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-extrabold text-white mb-0.5 leading-none">89</div>
+                <div className="text-sm font-bold text-emerald-50 mb-2">gün kaldı</div>
+                <div className="text-xs text-white bg-white/20 rounded-lg px-3 py-1 inline-block font-medium">
+                  Hemen Yenile
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* User Info at Bottom */}
           <div className="p-4 border-t border-gray-200">
             <div className="flex items-center space-x-3">
@@ -161,6 +184,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
             );
           })}
         </nav>
+
+        {/* Membership Status Card */}
+        <div className="p-4">
+          <div 
+            className="membership-anim border-2 border-emerald-400 rounded-xl p-4 shadow-lg cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] relative overflow-hidden"
+            onClick={() => {
+              // Navigate to pricing or renewal page when implemented
+              console.log('Membership renewal clicked');
+            }}
+          >
+            <div className="flex items-center justify-center mb-1.5">
+              <Clock className="w-4 h-4 text-white mr-1.5" />
+              <span className="text-xs font-semibold text-white uppercase tracking-wide">Üyelik Durumu</span>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-extrabold text-white mb-0.5 leading-none">89</div>
+              <div className="text-sm font-bold text-emerald-50 mb-2">gün kaldı</div>
+              <div className="text-xs text-white bg-white/20 rounded-lg px-3 py-1 inline-block font-medium">
+                Hemen Yenile
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="p-4 border-t border-gray-200">
           <div className="flex items-center space-x-3">

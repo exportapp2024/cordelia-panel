@@ -309,3 +309,56 @@ table th {
     min-width: 90px;
   }
 }
+
+/* Animated membership card background */
+.membership-anim {
+  background: linear-gradient(135deg, #10b981, #059669, #34d399);
+  background-size: 300% 300%;
+  animation: membershipPulse 6s ease infinite;
+  position: relative;
+}
+
+.membership-anim::after {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.25), transparent 45%),
+    radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.18), transparent 40%);
+  filter: blur(20px);
+  opacity: 0.7;
+  animation: membershipGlow 10s ease-in-out infinite;
+  z-index: 0;
+}
+
+.membership-anim > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes membershipPulse {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes membershipGlow {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+}
