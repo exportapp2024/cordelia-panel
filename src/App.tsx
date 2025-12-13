@@ -5,6 +5,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 import { LandingPage } from './components/LandingPage';
 import { AboutPage } from './components/AboutPage';
 import { ContactPage } from './components/ContactPage';
+import { PricingPage } from './components/PricingPage';
 import { AuthForm } from './components/AuthForm';
 import { Dashboard } from './components/Dashboard';
 import { EmailVerificationView } from './components/EmailVerificationView';
@@ -137,6 +138,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
         <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <AuthForm />} />
         <Route
           path="/reset-password"

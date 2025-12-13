@@ -22,6 +22,7 @@ export const PublicHeader: React.FC = () => {
     { path: '/', label: 'Ana Sayfa' },
     { path: '/about', label: 'Hakkımızda' },
     { path: '/contact', label: 'İletişim' },
+    { path: '/pricing', label: 'Fiyatlandırma' },
   ];
 
   const isActive = (path: string) => location.pathname === path;
