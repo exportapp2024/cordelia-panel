@@ -113,13 +113,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
             >
               <div className="flex items-center justify-center mb-1.5">
                 <Clock className="w-4 h-4 text-white mr-1.5" />
-                <span className="text-xs font-semibold text-white uppercase tracking-wide">Üyelik Durumu</span>
+                <span className="text-xs font-semibold text-white uppercase tracking-wide">Deneme Süresi</span>
               </div>
               <div className="text-center">
                 <div className="text-4xl font-extrabold text-white mb-0.5 leading-none">89</div>
                 <div className="text-sm font-bold text-emerald-50 mb-2">gün kaldı</div>
                 <div className="text-xs text-white bg-white/20 rounded-lg px-3 py-1 inline-block font-medium">
-                  Hemen Yenile
+                  Proya Geç
                 </div>
               </div>
             </div>
@@ -196,13 +196,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
           >
             <div className="flex items-center justify-center mb-1.5">
               <Clock className="w-4 h-4 text-white mr-1.5" />
-              <span className="text-xs font-semibold text-white uppercase tracking-wide">Üyelik Durumu</span>
+              <span className="text-xs font-semibold text-white uppercase tracking-wide">Deneme Süresi</span>
             </div>
             <div className="text-center">
               <div className="text-4xl font-extrabold text-white mb-0.5 leading-none">89</div>
               <div className="text-sm font-bold text-emerald-50 mb-2">gün kaldı</div>
               <div className="text-xs text-white bg-white/20 rounded-lg px-3 py-1 inline-block font-medium">
-                Hemen Yenile
+                Pro'ya Geçiş Yap
               </div>
             </div>
           </div>

@@ -57,8 +57,8 @@ export const PricingPage: React.FC = () => {
             >
               <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 border-2 border-emerald-100 relative overflow-hidden">
                 {/* Billing Period Toggle - Sol Üst */}
-                <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-10">
-                  <div className="flex items-center gap-3 bg-white rounded-lg shadow-md px-3 py-2">
+                <div className="absolute top-4 left-4 flex flex-col items-center gap-2 z-10">
+                  <div className="flex items-center gap-3 bg-white rounded-lg px-3 py-2">
                     <span className={`text-sm font-medium ${billingPeriod === 'monthly' ? 'text-gray-900' : 'text-gray-500'}`}>
                       Aylık
                     </span>
@@ -91,7 +91,7 @@ export const PricingPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="text-center mb-8">
+                <div className="text-center mb-8 mt-8">
                   <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                     Cordelia Pro
                   </h2>
@@ -112,23 +112,15 @@ export const PricingPage: React.FC = () => {
                       </span>
                     </div>
                     {billingPeriod === 'yearly' && (
-                      <p className="text-sm text-gray-500 mt-2">
+                      <p className="text-sm text-gray-500 mt-2 mb-4">
                         Yıllık faturalandırılır (${yearlyPricePerSeat.toFixed(2)}/koltuk/yıl)
                       </p>
                     )}
                   </div>
-
-                  <div className="bg-emerald-50 rounded-lg p-4 mb-8">
-                    <p className="text-sm text-emerald-800 font-medium">
-                      <strong>Per Seat Per Month</strong> lisanslama modeli ile ihtiyacınız kadar koltuk satın alın.
-                      <br />
-                      Seat sayısını istediğiniz zaman artırabilir veya azaltabilirsiniz.
-                    </p>
-                  </div>
                 </div>
 
                 {/* Features List */}
-                <div className="space-y-4 mb-8">
+                <div className="space-y-4 mb-8 mt-12">
                   <h3 className="text-xl font-semibold text-gray-900 mb-4">Dahil Olan Özellikler:</h3>
                   {features.map((feature, index) => (
                     <motion.div
@@ -151,7 +143,7 @@ export const PricingPage: React.FC = () => {
                 </div>
 
                 {/* Additional Benefits */}
-                <div className="border-t border-gray-200 pt-6 mb-8">
+                <div className="border-t border-gray-200 pt-6 mt-8">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
@@ -176,7 +168,7 @@ export const PricingPage: React.FC = () => {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 mt-8"
                 >
                   Satın Al
                   <ArrowRight className="w-5 h-5" />
