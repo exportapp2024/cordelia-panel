@@ -98,21 +98,21 @@ export const MEDICAL_FILE_FIELDS = {
     { key: 'smoking', label: 'Sigara / Nikotin kullanımı', type: 'input' },
     { key: 'alcohol', label: 'Alkol kullanımı', type: 'input' },
     { key: 'drugs', label: 'Uyuşturucu madde kullanımı', type: 'input' },
-    { key: 'supplements', label: 'Takviye ürünler', type: 'input' },
-    { key: 'dentalTreatments', label: 'Devam eden diş tedavileri', type: 'input' },
-    { key: 'chronicDiseases', label: 'Kronik hastalıklar', type: 'input' },
-    { key: 'medications', label: 'Düzenli kullanılan ilaçlar', type: 'input' },
-    { key: 'allergies', label: 'Alerjiler (ilaç / gıda / lateks)', type: 'input' },
-    { key: 'previousSurgeries', label: 'Geçirilmiş ameliyatlar (yıl ile birlikte)', type: 'input' },
-    { key: 'bleedingDisorder', label: 'Kanama bozukluğu öyküsü', type: 'input' },
-    { key: 'miscarriage', label: 'Düşük (abortus) öyküsü', type: 'input' },
-    { key: 'thrombosis', label: 'Derin ven trombozu veya emboli öyküsü', type: 'input' }
+    { key: 'supplements', label: 'Takviye ürünler', type: 'textarea' },
+    { key: 'dentalTreatments', label: 'Devam eden diş tedavileri', type: 'textarea' },
+    { key: 'chronicDiseases', label: 'Kronik hastalıklar', type: 'textarea' },
+    { key: 'medications', label: 'Düzenli kullanılan ilaçlar', type: 'textarea' },
+    { key: 'allergies', label: 'Alerjiler (ilaç / gıda / lateks)', type: 'textarea' },
+    { key: 'previousSurgeries', label: 'Geçirilmiş ameliyatlar (yıl ile birlikte)', type: 'textarea' },
+    { key: 'bleedingDisorder', label: 'Kanama bozukluğu öyküsü', type: 'textarea' },
+    { key: 'miscarriage', label: 'Düşük (abortus) öyküsü', type: 'textarea' },
+    { key: 'thrombosis', label: 'Derin ven trombozu veya emboli öyküsü', type: 'textarea' }
   ],
   preoperativeEvaluation: [
-    { key: 'vitalSigns', label: 'Vital bulgular', type: 'input' },
-    { key: 'physicalExam', label: 'Fizik muayene bulguları', type: 'input' },
-    { key: 'labResults', label: 'Laboratuvar ve görüntüleme sonuçları', type: 'input' },
-    { key: 'otherNotes', label: 'Diğer notlar', type: 'input' }
+    { key: 'vitalSigns', label: 'Vital bulgular', type: 'textarea' },
+    { key: 'physicalExam', label: 'Fizik muayene bulguları', type: 'textarea' },
+    { key: 'labResults', label: 'Laboratuvar ve görüntüleme sonuçları', type: 'textarea' },
+    { key: 'otherNotes', label: 'Diğer notlar', type: 'textarea' }
   ],
   procedureInfo: [
     { key: 'plannedProcedures', label: 'Planlanan işlem(ler)', type: 'input' },
@@ -121,9 +121,9 @@ export const MEDICAL_FILE_FIELDS = {
     { key: 'operativeNotes', label: 'Operatif / İşlem Notları', type: 'textarea' }
   ],
   dischargeRecommendations: [
-    { key: 'medications', label: 'Taburculukta verilen ilaçlar', type: 'input' },
-    { key: 'woundCare', label: 'Yara / işlem bölgesi bakımı', type: 'input' },
-    { key: 'activityRestrictions', label: 'Aktivite kısıtlamaları', type: 'input' },
+    { key: 'medications', label: 'Taburculukta verilen ilaçlar', type: 'textarea' },
+    { key: 'woundCare', label: 'Yara / işlem bölgesi bakımı', type: 'textarea' },
+    { key: 'activityRestrictions', label: 'Aktivite kısıtlamaları', type: 'textarea' },
     { key: 'nextControlDate', label: 'Sonraki kontrol tarihi', type: 'input' }
   ]
 };

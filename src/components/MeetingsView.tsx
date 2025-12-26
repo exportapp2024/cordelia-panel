@@ -78,7 +78,7 @@ export const MeetingsView: React.FC = () => {
     title: '',
     date: '',
     time: '',
-    duration: '60',
+    duration: '30',
     notes: '',
     patient_id: ''
   });
@@ -228,6 +228,11 @@ export const MeetingsView: React.FC = () => {
   // Handle slot selection (clicking on empty time slot)
   const handleSelectSlot = (slotInfo: SlotInfo) => {
     const start = moment(slotInfo.start);
+    // Snap to nearest 15-minute interval (00/15/30/45)
+    const minutes = start.minute();
+    const roundedMinutes = Math.round(minutes / 15) * 15;
+    start.minute(roundedMinutes).second(0);
+    
     const formattedDate = start.format('YYYY-MM-DD');
     const formattedTime = start.format('HH:mm');
     
@@ -235,7 +240,7 @@ export const MeetingsView: React.FC = () => {
       title: '',
       date: formattedDate,
       time: formattedTime,
-      duration: '60',
+      duration: '30',
       notes: '',
       patient_id: ''
     });
@@ -719,7 +724,7 @@ export const MeetingsView: React.FC = () => {
 
       if (data.success) {
         setShowCreateModal(false);
-        setFormData({ title: '', date: '', time: '', duration: '60', notes: '', patient_id: '' });
+        setFormData({ title: '', date: '', time: '', duration: '30', notes: '', patient_id: '' });
         await fetchEvents();
       } else {
         throw new Error(data.error || 'Randevu oluşturulamadı');
@@ -1041,13 +1046,13 @@ export const MeetingsView: React.FC = () => {
             <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Başlık <span className="text-red-500">*</span>
+                  İşlem <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Örn: Toplantı: Ahmet Yılmaz"
+                  placeholder="Örnek: Muayene"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-emerald-400"
                 />
               </div>
@@ -1063,7 +1068,11 @@ export const MeetingsView: React.FC = () => {
                   required
                 >
                   <option value="">Hasta seçiniz</option>
-                  {patients.map((patient) => (
+                  {[...patients].sort((a, b) => {
+                    const nameA = a.data.name || 'İsimsiz Hasta';
+                    const nameB = b.data.name || 'İsimsiz Hasta';
+                    return nameA.localeCompare(nameB, 'tr');
+                  }).map((patient) => (
                     <option key={patient.id} value={patient.id}>
                       {patient.patient_number ? `#${patient.patient_number} - ` : ''}{patient.data.name || 'İsimsiz Hasta'}
                     </option>
@@ -1090,7 +1099,20 @@ export const MeetingsView: React.FC = () => {
                 <input
                   type="time"
                   value={formData.time}
-                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                  onChange={(e) => {
+                    const timeValue = e.target.value;
+                    if (timeValue) {
+                      // Validate and snap to 15-minute intervals (00/15/30/45)
+                      const [hours, minutes] = timeValue.split(':');
+                      const minutesNum = parseInt(minutes, 10);
+                      const roundedMinutes = Math.round(minutesNum / 15) * 15;
+                      const snappedTime = `${hours}:${String(roundedMinutes).padStart(2, '0')}`;
+                      setFormData({ ...formData, time: snappedTime });
+                    } else {
+                      setFormData({ ...formData, time: timeValue });
+                    }
+                  }}
+                  step="900"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-emerald-400"
                 />
               </div>
@@ -1127,7 +1149,7 @@ export const MeetingsView: React.FC = () => {
               <button
                 onClick={() => {
                   setShowCreateModal(false);
-                  setFormData({ title: '', date: '', time: '', duration: '60', notes: '', patient_id: '' });
+                  setFormData({ title: '', date: '', time: '', duration: '30', notes: '', patient_id: '' });
                 }}
                 className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >

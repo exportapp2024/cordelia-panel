@@ -68,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Cordelia</h1>
-                <p className="text-sm text-gray-500">Tıbbi Platform</p>
+                <p className="text-sm text-gray-500">Akıllı Asistan</p>
               </div>
             </div>
             <button
@@ -158,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">Cordelia</h1>
-              <p className="text-sm text-gray-500">Tıbbi Platform</p>
+              <p className="text-sm text-gray-500">Akıllı Asistan</p>
             </div>
           </div>
         </div>
