@@ -578,7 +578,7 @@ const PatientMedicalFileView: React.FC = () => {
                       value={medicalFileData.preoperativeEvaluation[field.key as keyof typeof medicalFileData.preoperativeEvaluation] || ''}
                       onChange={(e) => handleFieldChange('preoperativeEvaluation', field.key, e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      rows={3}
+                      rows={4}
                       disabled={isReadOnly}
                     />
                   ) : (
@@ -930,7 +930,7 @@ const PatientMedicalFileView: React.FC = () => {
                       value={medicalFileData.dischargeRecommendations[field.key as keyof typeof medicalFileData.dischargeRecommendations] || ''}
                       onChange={(e) => handleFieldChange('dischargeRecommendations', field.key, e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      rows={3}
+                      rows={3 }
                       disabled={isReadOnly}
                     />
                   ) : (

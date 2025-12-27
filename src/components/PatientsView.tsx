@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { User, Calendar, Phone, Loader2, AlertCircle, RefreshCw, Plus, X, Search, Edit3 } from 'lucide-react';
+import { User, Calendar, Phone, Loader2, AlertCircle, RefreshCw, Plus, X, Search, Edit3, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePatients } from '../hooks/usePatients';
 import { useAuth } from '../hooks/useAuth';
@@ -359,7 +359,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
   );
 };
 
-interface AddPatientModalProps {
+interface AddPatientAccordionProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (patientData: {
@@ -373,7 +373,7 @@ interface AddPatientModalProps {
   loading: boolean;
 }
 
-const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAdd, loading }) => {
+const AddPatientAccordion: React.FC<AddPatientAccordionProps> = ({ isOpen, onClose, onAdd, loading }) => {
   const [formData, setFormData] = useState({
     name: '',
     reason: '',
@@ -386,7 +386,7 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim() || !formData.phone.trim()) return;
 
     try {
       await onAdd({
@@ -414,26 +414,30 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4 sm:px-6 py-8 sm:py-12">
-      <div className="bg-white rounded-lg w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden shadow-2xl">
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
-          <h3 className="text-lg font-semibold">Yeni Hasta Ekle</h3>
+    <div 
+      className={`absolute top-full right-0 mt-2 w-96 sm:w-[500px] bg-white rounded-lg shadow-lg border border-gray-200 z-40 overflow-hidden transition-all duration-300 ease-in-out ${
+        isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+      }`}
+    >
+      <div className="p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold flex items-center">
+            <ChevronDown className="w-5 h-5 mr-2 text-gray-500" />
+            Yeni Hasta Ekle
+          </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 sm:hidden"
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              İsim *
+              Ad Soyad <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -460,13 +464,17 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Telefon
+              Telefon <span className="text-red-500">*</span>
             </label>
-            <PhoneInputField
-              value={formData.phone}
-              onChange={(phone) => setFormData({ ...formData, phone })}
-              disabled={loading}
-            />
+            <div className="[&_.react-international-phone-input-container]:h-[42px] [&_.react-international-phone-input]:h-[42px] [&_.react-international-phone-country-selector-button]:h-[42px]">
+              <PhoneInputField
+                value={formData.phone}
+                onChange={(phone) => setFormData({ ...formData, phone })}
+                disabled={loading}
+                className="w-full group"
+                inputClassName="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
           </div>
           
           <div>
@@ -509,9 +517,8 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
               disabled={loading}
             />
           </div>
-          </div>
           
-          <div className="flex space-x-3 p-4 sm:p-6 pt-0 border-t border-gray-200 flex-shrink-0 bg-white">
+          <div className="flex space-x-3 pt-2">
             <button
               type="button"
               onClick={onClose}
@@ -523,7 +530,7 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              disabled={loading || !formData.name.trim()}
+              disabled={loading || !formData.name.trim() || !formData.phone.trim()}
             >
               {loading ? (
                 <>
@@ -554,7 +561,7 @@ export const PatientsView: React.FC = () => {
     reason: string;
     notes: string;
   } | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAccordionOpen, setIsAccordionOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -627,9 +634,9 @@ export const PatientsView: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Hastalar</h1>
             <p className="text-gray-600 mt-1">Hasta kayıtlarınızı yönetin</p>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="relative flex items-center space-x-2">
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => setIsAccordionOpen(!isAccordionOpen)}
               className="inline-flex items-center px-3 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
               title="Yeni Hasta"
             >
@@ -644,6 +651,12 @@ export const PatientsView: React.FC = () => {
               <RefreshCw className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Yenile</span>
             </button>
+            <AddPatientAccordion
+              isOpen={isAccordionOpen}
+              onClose={() => setIsAccordionOpen(false)}
+              onAdd={handleAddPatient}
+              loading={isAdding}
+            />
           </div>
         </div>
 
@@ -805,13 +818,6 @@ export const PatientsView: React.FC = () => {
           </>
         )}
       </div>
-
-      <AddPatientModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onAdd={handleAddPatient}
-          loading={isAdding}
-        />
 
       {/* Full Edit Modal */}
       {editFull && (
