@@ -1271,11 +1271,32 @@ const PatientMedicalFileView: React.FC = () => {
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                  <h3 className={`text-lg font-semibold mb-2 ${
-                                    isPast ? 'text-gray-500' : 'text-gray-900'
-                                  }`}>
-                                    {appointment.title}
-                                  </h3>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h3 className={`text-lg font-semibold ${
+                                      isPast ? 'text-gray-500' : 'text-gray-900'
+                                    }`}>
+                                      {appointment.title}
+                                    </h3>
+                                    {appointment.status && appointment.status !== 'confirmed' && (
+                                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                        appointment.status === 'attended'
+                                          ? 'bg-emerald-100 text-emerald-700'
+                                          : appointment.status === 'no_show'
+                                          ? 'bg-yellow-100 text-yellow-700'
+                                          : appointment.status === 'cancelled'
+                                          ? 'bg-red-100 text-red-700'
+                                          : 'bg-gray-100 text-gray-700'
+                                      }`}>
+                                        {appointment.status === 'attended'
+                                          ? 'Geldi'
+                                          : appointment.status === 'no_show'
+                                          ? 'Gelmedi'
+                                          : appointment.status === 'cancelled'
+                                          ? 'Randevu iptal'
+                                          : ''}
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className={`flex items-center space-x-4 text-sm ${
                                     isPast ? 'text-gray-400' : 'text-gray-600'
                                   }`}>

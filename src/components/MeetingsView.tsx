@@ -47,6 +47,7 @@ interface CalendarEvent {
     displayName?: string;
   };
   createdBy?: string; // User ID who created the event
+  status?: 'attended' | 'no_show' | 'cancelled' | 'confirmed' | null; // Appointment status
   patient?: {
     id: string;
     patient_number: number;
@@ -247,6 +248,7 @@ export const MeetingsView: React.FC = () => {
           start: { dateTime: e.start_time },
           end: { dateTime: e.end_time },
           createdBy: e.created_by || e.user_id, // Use created_by from backend, fallback to user_id
+          status: e.status || 'confirmed', // Include status field
           patient: e.patients && Array.isArray(e.patients) && e.patients.length > 0 ? e.patients[0] : (e.patients || null),
         }));
         setEvents(mapped);
@@ -705,6 +707,45 @@ export const MeetingsView: React.FC = () => {
     }
   };
 
+  // Handle status update
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const handleStatusUpdate = async (eventId: string, newStatus: 'attended' | 'no_show' | 'cancelled') => {
+    if (!user?.id) return;
+    
+    setUpdatingStatus(eventId);
+    try {
+      const response = await fetch(buildApiUrl(`calendar/events/${user.id}/${eventId}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: newStatus
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update the selected event state
+        if (selectedEvent && selectedEvent.id === eventId) {
+          setSelectedEvent({
+            ...selectedEvent,
+            status: newStatus
+          });
+        }
+        // Update events list
+        setEvents(events.map(e => 
+          e.id === eventId ? { ...e, status: newStatus } : e
+        ));
+      } else {
+        throw new Error(data.error || 'Failed to update status');
+      }
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Durum güncellenirken bir hata oluştu');
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
   // Handle window resize for mobile detection
   useEffect(() => {
     const handleResize = () => {
@@ -894,6 +935,7 @@ export const MeetingsView: React.FC = () => {
                 start: { dateTime: data.event.start_time },
                 end: { dateTime: data.event.end_time },
                 createdBy: data.event.created_by || data.event.user_id,
+                status: data.event.status || 'confirmed',
                 patient: data.event.patients && Array.isArray(data.event.patients) && data.event.patients.length > 0 ? data.event.patients[0] : (data.event.patients || null),
               };
               
@@ -1921,7 +1963,7 @@ export const MeetingsView: React.FC = () => {
               </div>
 
               {selectedEvent.patient && (
-                <div className="border-t border-gray-200 pt-4">
+                <div className="border-t border-gray-200 pt-4 space-y-4">
                   <div className="flex items-center space-x-2">
                     <span className="text-sm font-medium text-gray-700">Hasta:</span>
                     <button
@@ -1931,6 +1973,67 @@ export const MeetingsView: React.FC = () => {
                       {selectedEvent.patient.data.name || 'İsimsiz Hasta'}
                       {selectedEvent.patient.patient_number && ` (#${selectedEvent.patient.patient_number})`}
                     </button>
+                  </div>
+                  
+                  {/* Status Selection Buttons */}
+                  <div>
+                    <span className="text-sm font-medium text-gray-700 block mb-2">Durum:</span>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleStatusUpdate(selectedEvent.id, 'attended')}
+                        disabled={updatingStatus === selectedEvent.id}
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          selectedEvent.status === 'attended'
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {updatingStatus === selectedEvent.id && selectedEvent.status === 'attended' ? (
+                          <span className="flex items-center space-x-1">
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <span>Geldi</span>
+                          </span>
+                        ) : (
+                          'Geldi'
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleStatusUpdate(selectedEvent.id, 'no_show')}
+                        disabled={updatingStatus === selectedEvent.id}
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          selectedEvent.status === 'no_show'
+                            ? 'bg-yellow-600 text-white'
+                            : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {updatingStatus === selectedEvent.id && selectedEvent.status === 'no_show' ? (
+                          <span className="flex items-center space-x-1">
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <span>Gelmedi</span>
+                          </span>
+                        ) : (
+                          'Gelmedi'
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleStatusUpdate(selectedEvent.id, 'cancelled')}
+                        disabled={updatingStatus === selectedEvent.id}
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          selectedEvent.status === 'cancelled'
+                            ? 'bg-red-600 text-white'
+                            : 'bg-red-50 text-red-700 hover:bg-red-100'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {updatingStatus === selectedEvent.id && selectedEvent.status === 'cancelled' ? (
+                          <span className="flex items-center space-x-1">
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <span>Randevu iptal</span>
+                          </span>
+                        ) : (
+                          'Randevu iptal'
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
