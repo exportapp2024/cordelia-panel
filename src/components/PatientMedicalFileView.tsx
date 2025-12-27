@@ -451,30 +451,44 @@ const PatientMedicalFileView: React.FC = () => {
               <p className="text-sm text-gray-600 mt-1">Hastanın temel bilgileri ve kimlik verileri</p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {MEDICAL_FILE_FIELDS.patientInfo.map((field) => (
-                <div key={field.key} className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    {field.label}
-                  </label>
-                  {field.key === 'phoneNumber' ? (
-                    <PhoneInputField
-                      value={medicalFileData.patientInfo.phoneNumber || ''}
-                      onChange={(phone) => handleFieldChange('patientInfo', 'phoneNumber', phone)}
-                      disabled={isReadOnly}
-                      className="w-full group"
-                      inputClassName="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={medicalFileData.patientInfo[field.key as keyof typeof medicalFileData.patientInfo] || ''}
-                      onChange={(e) => handleFieldChange('patientInfo', field.key, e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      disabled={isReadOnly}
-                    />
-                  )}
-                </div>
-              ))}
+              {MEDICAL_FILE_FIELDS.patientInfo.map((field) => {
+                const isDateField = ['birthDate', 'admissionDate', 'surgeryDate', 'dischargeDate', 'lastControlDate', 'flightEligibilityDate'].includes(field.key);
+                
+                return (
+                  <div key={field.key} className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      {field.label}
+                    </label>
+                    {field.key === 'phoneNumber' ? (
+                      <div 
+                        style={{ 
+                          '--react-international-phone-height': '48px',
+                          '--react-international-phone-border-radius': '0.5rem',
+                          '--react-international-phone-border-color': 'rgb(209 213 219)',
+                          '--react-international-phone-background-color': isReadOnly ? 'rgb(243 244 246)' : 'white'
+                        } as React.CSSProperties}
+                        className="phone-input-wrapper"
+                      >
+                        <PhoneInputField
+                          value={medicalFileData.patientInfo.phoneNumber || ''}
+                          onChange={(phone) => handleFieldChange('patientInfo', 'phoneNumber', phone)}
+                          disabled={isReadOnly}
+                          className="w-full group"
+                          inputClassName="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 group-focus:ring-2 group-focus:ring-emerald-500 group-focus:border-emerald-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                    ) : (
+                      <input
+                        type={isDateField ? 'date' : 'text'}
+                        value={medicalFileData.patientInfo[field.key as keyof typeof medicalFileData.patientInfo] || ''}
+                        onChange={(e) => handleFieldChange('patientInfo', field.key, e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        disabled={isReadOnly}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         );
@@ -520,13 +534,23 @@ const PatientMedicalFileView: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">
                     {field.label}
                   </label>
-                  <input
-                    type="text"
-                    value={medicalFileData.generalHealthHistory[field.key as keyof typeof medicalFileData.generalHealthHistory] || ''}
-                    onChange={(e) => handleFieldChange('generalHealthHistory', field.key, e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    disabled={isReadOnly}
-                  />
+                  {field.type === 'textarea' ? (
+                    <textarea
+                      value={medicalFileData.generalHealthHistory[field.key as keyof typeof medicalFileData.generalHealthHistory] || ''}
+                      onChange={(e) => handleFieldChange('generalHealthHistory', field.key, e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      rows={3}
+                      disabled={isReadOnly}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={medicalFileData.generalHealthHistory[field.key as keyof typeof medicalFileData.generalHealthHistory] || ''}
+                      onChange={(e) => handleFieldChange('generalHealthHistory', field.key, e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      disabled={isReadOnly}
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -549,13 +573,23 @@ const PatientMedicalFileView: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">
                     {field.label}
                   </label>
-                  <input
-                    type="text"
-                    value={medicalFileData.preoperativeEvaluation[field.key as keyof typeof medicalFileData.preoperativeEvaluation] || ''}
-                    onChange={(e) => handleFieldChange('preoperativeEvaluation', field.key, e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    disabled={isReadOnly}
-                  />
+                  {field.type === 'textarea' ? (
+                    <textarea
+                      value={medicalFileData.preoperativeEvaluation[field.key as keyof typeof medicalFileData.preoperativeEvaluation] || ''}
+                      onChange={(e) => handleFieldChange('preoperativeEvaluation', field.key, e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      rows={4}
+                      disabled={isReadOnly}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={medicalFileData.preoperativeEvaluation[field.key as keyof typeof medicalFileData.preoperativeEvaluation] || ''}
+                      onChange={(e) => handleFieldChange('preoperativeEvaluation', field.key, e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      disabled={isReadOnly}
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -891,13 +925,23 @@ const PatientMedicalFileView: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">
                     {field.label}
                   </label>
-                  <input
-                    type="text"
-                    value={medicalFileData.dischargeRecommendations[field.key as keyof typeof medicalFileData.dischargeRecommendations] || ''}
-                    onChange={(e) => handleFieldChange('dischargeRecommendations', field.key, e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    disabled={isReadOnly}
-                  />
+                  {field.type === 'textarea' ? (
+                    <textarea
+                      value={medicalFileData.dischargeRecommendations[field.key as keyof typeof medicalFileData.dischargeRecommendations] || ''}
+                      onChange={(e) => handleFieldChange('dischargeRecommendations', field.key, e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      rows={3 }
+                      disabled={isReadOnly}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={medicalFileData.dischargeRecommendations[field.key as keyof typeof medicalFileData.dischargeRecommendations] || ''}
+                      onChange={(e) => handleFieldChange('dischargeRecommendations', field.key, e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      disabled={isReadOnly}
+                    />
+                  )}
                 </div>
               ))}
             </div>

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, ChevronLeft, ChevronRight, Filter, Loader2, ChevronDown, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePatients } from '../hooks/usePatients';
 import { buildApiUrl } from '../lib/api';
+import { PhoneInputField } from './PhoneInputField';
 import { Calendar, momentLocalizer, SlotInfo, Event as RBCEvent, Views, View } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
@@ -68,7 +69,7 @@ interface CalendarEventRBC extends RBCEvent {
 export const MeetingsView: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { patients } = usePatients(user?.id || null);
+  const { patients, addPatient } = usePatients(user?.id || null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,9 +79,26 @@ export const MeetingsView: React.FC = () => {
     title: '',
     date: '',
     time: '',
-    duration: '60',
+    duration: '30',
     notes: '',
     patient_id: ''
+  });
+  // Autocomplete states
+  const [patientSearchQuery, setPatientSearchQuery] = useState('');
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const [selectedPatientIndex, setSelectedPatientIndex] = useState(-1);
+  const patientInputRef = useRef<HTMLInputElement>(null);
+  const patientDropdownRef = useRef<HTMLDivElement>(null);
+  // New patient form states
+  const [showNewPatientForm, setShowNewPatientForm] = useState(false);
+  const [isAddingPatient, setIsAddingPatient] = useState(false);
+  const [newPatientData, setNewPatientData] = useState({
+    name: '',
+    national_id: '',
+    phone: '',
+    address: '',
+    reason: '',
+    notes: ''
   });
   // const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<string | null>(null);
@@ -95,6 +113,52 @@ export const MeetingsView: React.FC = () => {
   const [isFiltering, setIsFiltering] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const createPanelRef = useRef<HTMLDivElement>(null);
+  // Conflict warning states
+  const [conflictWarning, setConflictWarning] = useState<CalendarEvent[]>([]);
+  const [pendingAppointment, setPendingAppointment] = useState<{
+    type: 'create' | 'drop' | 'resize';
+    start: Date;
+    end: Date;
+    eventId?: string;
+    formData?: typeof formData;
+    originalEvent?: CalendarEvent;
+  } | null>(null);
+  const [showConflictModal, setShowConflictModal] = useState(false);
+
+  // Helper function to normalize Turkish characters for search
+  const normalizeForSearch = (text: string): string => {
+    return text
+      .toLowerCase()
+      .replace(/ı/g, 'i')
+      .replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u')
+      .replace(/ş/g, 's')
+      .replace(/ö/g, 'o')
+      .replace(/ç/g, 'c');
+  };
+
+  // Filter patients based on search query
+  const filteredPatients = useMemo(() => {
+    if (!patientSearchQuery.trim()) {
+      return [...patients].sort((a, b) => {
+        const nameA = a.data.name || 'İsimsiz Hasta';
+        const nameB = b.data.name || 'İsimsiz Hasta';
+        return nameA.localeCompare(nameB, 'tr');
+      });
+    }
+    const normalizedSearch = normalizeForSearch(patientSearchQuery);
+    return patients
+      .filter(patient => {
+        const patientName = patient.data.name || '';
+        return normalizeForSearch(patientName).includes(normalizedSearch);
+      })
+      .sort((a, b) => {
+        const nameA = a.data.name || 'İsimsiz Hasta';
+        const nameB = b.data.name || 'İsimsiz Hasta';
+        return nameA.localeCompare(nameB, 'tr');
+      });
+  }, [patients, patientSearchQuery]);
 
   // Convert CalendarEvent to react-big-calendar Event format
   const convertToRBCEvent = (event: CalendarEvent): CalendarEventRBC => {
@@ -117,6 +181,32 @@ export const MeetingsView: React.FC = () => {
       end: endDate,
       resource: event
     };
+  };
+
+  // Check for appointment conflicts
+  const checkAppointmentConflict = (start: Date, end: Date, excludeEventId?: string): CalendarEvent[] => {
+    const conflicts: CalendarEvent[] = [];
+    
+    for (const event of events) {
+      // Skip the event being moved/resized
+      if (excludeEventId && event.id === excludeEventId) {
+        continue;
+      }
+
+      const eventStart = event.start.dateTime 
+        ? new Date(event.start.dateTime) 
+        : new Date(event.start.date || '');
+      const eventEnd = event.end.dateTime 
+        ? new Date(event.end.dateTime) 
+        : new Date(event.end.date || '');
+
+      // Check if there's an overlap: (newStart < existingEnd) && (newEnd > existingStart)
+      if (start < eventEnd && end > eventStart) {
+        conflicts.push(event);
+      }
+    }
+
+    return conflicts;
   };
 
   // Get calendar events
@@ -228,6 +318,11 @@ export const MeetingsView: React.FC = () => {
   // Handle slot selection (clicking on empty time slot)
   const handleSelectSlot = (slotInfo: SlotInfo) => {
     const start = moment(slotInfo.start);
+    // Snap to nearest 15-minute interval (00/15/30/45)
+    const minutes = start.minute();
+    const roundedMinutes = Math.round(minutes / 15) * 15;
+    start.minute(roundedMinutes).second(0);
+    
     const formattedDate = start.format('YYYY-MM-DD');
     const formattedTime = start.format('HH:mm');
     
@@ -235,10 +330,14 @@ export const MeetingsView: React.FC = () => {
       title: '',
       date: formattedDate,
       time: formattedTime,
-      duration: '60',
+      duration: '30',
       notes: '',
       patient_id: ''
     });
+    setPatientSearchQuery('');
+    setShowPatientDropdown(false);
+    setShowNewPatientForm(false);
+    setNewPatientData({ name: '', national_id: '', phone: '', address: '', reason: '', notes: '' });
     setShowCreateModal(true);
   };
 
@@ -247,11 +346,76 @@ export const MeetingsView: React.FC = () => {
     setSelectedEvent(event.resource);
   };
 
+  // Calculate conflict groups and positions for side-by-side display
+  const getConflictGroups = useMemo(() => {
+    const groups: CalendarEvent[][] = [];
+    const processed = new Set<string>();
+
+    for (const event of events) {
+      if (processed.has(event.id)) continue;
+
+      const eventStart = event.start.dateTime 
+        ? new Date(event.start.dateTime) 
+        : new Date(event.start.date || '');
+      const eventEnd = event.end.dateTime 
+        ? new Date(event.end.dateTime) 
+        : new Date(event.end.date || '');
+
+      // Find all events that conflict with this one
+      const conflictGroup: CalendarEvent[] = [event];
+      processed.add(event.id);
+
+      for (const otherEvent of events) {
+        if (processed.has(otherEvent.id)) continue;
+
+        const otherStart = otherEvent.start.dateTime 
+          ? new Date(otherEvent.start.dateTime) 
+          : new Date(otherEvent.start.date || '');
+        const otherEnd = otherEvent.end.dateTime 
+          ? new Date(otherEvent.end.dateTime) 
+          : new Date(otherEvent.end.date || '');
+
+        // Check if they overlap
+        if (eventStart < otherEnd && eventEnd > otherStart) {
+          conflictGroup.push(otherEvent);
+          processed.add(otherEvent.id);
+        }
+      }
+
+      if (conflictGroup.length > 1) {
+        // Sort by start time for consistent ordering
+        conflictGroup.sort((a, b) => {
+          const aStart = a.start.dateTime ? new Date(a.start.dateTime).getTime() : 0;
+          const bStart = b.start.dateTime ? new Date(b.start.dateTime).getTime() : 0;
+          return aStart - bStart;
+        });
+        groups.push(conflictGroup);
+      }
+    }
+
+    return groups;
+  }, [events]);
+
+  // Get conflict position for an event
+  const getConflictPosition = (eventId: string): { left: number; width: number } | null => {
+    for (const group of getConflictGroups) {
+      const index = group.findIndex(e => e.id === eventId);
+      if (index !== -1) {
+        const totalConflicts = group.length;
+        const widthPercent = 100 / totalConflicts;
+        const leftPercent = index * widthPercent;
+        return { left: leftPercent, width: widthPercent };
+      }
+    }
+    return null;
+  };
+
   // Event style getter for custom colors
-  const eventStyleGetter = (_event: CalendarEventRBC) => {
-    void _event;
+  const eventStyleGetter = (event: CalendarEventRBC) => {
     const backgroundColor = '#10b981'; // emerald-500
-    const style = {
+    const conflictPos = getConflictPosition(event.resource?.id || '');
+    
+    const baseStyle: React.CSSProperties = {
       backgroundColor,
       borderRadius: '4px',
       color: 'white',
@@ -262,7 +426,54 @@ export const MeetingsView: React.FC = () => {
       fontSize: '12px',
       fontWeight: 500
     };
-    return { style };
+
+    // If event is in a conflict group, adjust position and width for side-by-side display
+    if (conflictPos) {
+      // Use calc to position events side-by-side
+      // react-big-calendar uses absolute positioning, so we adjust left and width
+      baseStyle.width = `calc(${conflictPos.width}% - 2px)`;
+      baseStyle.left = conflictPos.left > 0 ? `calc(${conflictPos.left}% + 2px)` : '2px';
+      baseStyle.marginRight = '2px';
+    }
+
+    return { style: baseStyle };
+  };
+
+  // Internal function to actually perform event drop
+  const performEventDrop = async (original: CalendarEvent, roundedStart: Date, roundedEnd: Date) => {
+    if (!user?.id) return;
+
+    // Optimistic update
+    const prevEvents = events;
+    const updated: CalendarEvent = {
+      ...original,
+      start: { dateTime: roundedStart.toISOString() },
+      end: { dateTime: roundedEnd.toISOString() }
+    };
+    setSyncingEventId(original.id);
+    setEvents(prevEvents.map(e => (e.id === original.id ? updated : e)));
+
+    try {
+      const res = await fetch(buildApiUrl(`calendar/events/${user.id}/${original.id}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: original.summary,
+          description: original.description || '',
+          startTime: roundedStart.toISOString(),
+          endTime: roundedEnd.toISOString(),
+          timeZone: 'Europe/Istanbul'
+        })
+      });
+      if (!res.ok) throw new Error('Güncelleme başarısız');
+    } catch (e) {
+      // revert on failure
+      setEvents(prevEvents);
+      setError('Etkinlik taşınamadı');
+      console.error(e);
+    } finally {
+      setSyncingEventId(null);
+    }
   };
 
   // DnD: move event (drag & drop)
@@ -298,37 +509,23 @@ export const MeetingsView: React.FC = () => {
       return;
     }
 
-    // Optimistic update
-    const prevEvents = events;
-    const updated: CalendarEvent = {
-      ...original,
-      start: { dateTime: roundedStart.toISOString() },
-      end: { dateTime: roundedEnd.toISOString() }
-    };
-    setSyncingEventId(original.id);
-    setEvents(prevEvents.map(e => (e.id === original.id ? updated : e)));
-
-    try {
-      const res = await fetch(buildApiUrl(`calendar/events/${user.id}/${original.id}`), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: original.summary,
-          description: original.description || '',
-          startTime: roundedStart.toISOString(),
-          endTime: roundedEnd.toISOString(),
-          timeZone: 'Europe/Istanbul'
-        })
+    // Check for conflicts
+    const conflicts = checkAppointmentConflict(roundedStart, roundedEnd, original.id);
+    if (conflicts.length > 0) {
+      setConflictWarning(conflicts);
+      setPendingAppointment({
+        type: 'drop',
+        start: roundedStart,
+        end: roundedEnd,
+        eventId: original.id,
+        originalEvent: original
       });
-      if (!res.ok) throw new Error('Güncelleme başarısız');
-    } catch (e) {
-      // revert on failure
-      setEvents(prevEvents);
-      setError('Etkinlik taşınamadı');
-      console.error(e);
-    } finally {
-      setSyncingEventId(null);
+      setShowConflictModal(true);
+      return;
     }
+
+    // No conflicts, proceed with update
+    await performEventDrop(original, roundedStart, roundedEnd);
   };
 
   // Helper function to snap end time to 15-minute intervals
@@ -343,6 +540,41 @@ export const MeetingsView: React.FC = () => {
     }
     
     return rounded;
+  };
+
+  // Internal function to actually perform event resize
+  const performEventResize = async (original: CalendarEvent, start: Date, adjustedEnd: Date) => {
+    if (!user?.id) return;
+
+    const prevEvents = events;
+    const updated: CalendarEvent = {
+      ...original,
+      start: { dateTime: start.toISOString() },
+      end: { dateTime: adjustedEnd.toISOString() }
+    };
+    setSyncingEventId(original.id);
+    setEvents(prevEvents.map(e => (e.id === original.id ? updated : e)));
+
+    try {
+      const res = await fetch(buildApiUrl(`calendar/events/${user.id}/${original.id}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: original.summary,
+          description: original.description || '',
+          startTime: start.toISOString(),
+          endTime: adjustedEnd.toISOString(),
+          timeZone: 'Europe/Istanbul'
+        })
+      });
+      if (!res.ok) throw new Error('Güncelleme başarısız');
+    } catch (e) {
+      setEvents(prevEvents);
+      setError('Etkinlik güncellenemedi');
+      console.error(e);
+    } finally {
+      setSyncingEventId(null);
+    }
   };
 
   // DnD: resize event (drag edge)
@@ -375,35 +607,23 @@ export const MeetingsView: React.FC = () => {
       return;
     }
 
-    const prevEvents = events;
-    const updated: CalendarEvent = {
-      ...original,
-      start: { dateTime: start.toISOString() },
-      end: { dateTime: adjustedEnd.toISOString() }
-    };
-    setSyncingEventId(original.id);
-    setEvents(prevEvents.map(e => (e.id === original.id ? updated : e)));
-
-    try {
-      const res = await fetch(buildApiUrl(`calendar/events/${user.id}/${original.id}`), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: original.summary,
-          description: original.description || '',
-          startTime: start.toISOString(),
-          endTime: adjustedEnd.toISOString(),
-          timeZone: 'Europe/Istanbul'
-        })
+    // Check for conflicts
+    const conflicts = checkAppointmentConflict(start, adjustedEnd, original.id);
+    if (conflicts.length > 0) {
+      setConflictWarning(conflicts);
+      setPendingAppointment({
+        type: 'resize',
+        start: start,
+        end: adjustedEnd,
+        eventId: original.id,
+        originalEvent: original
       });
-      if (!res.ok) throw new Error('Güncelleme başarısız');
-    } catch (e) {
-      setEvents(prevEvents);
-      setError('Etkinlik güncellenemedi');
-      console.error(e);
-    } finally {
-      setSyncingEventId(null);
+      setShowConflictModal(true);
+      return;
     }
+
+    // No conflicts, proceed with update
+    await performEventResize(original, start, adjustedEnd);
   };
 
   // Format date range for display based on view (force Turkish via Intl)
@@ -501,16 +721,79 @@ export const MeetingsView: React.FC = () => {
       if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
         setShowFilterDropdown(false);
       }
+      if (patientDropdownRef.current && !patientDropdownRef.current.contains(event.target as Node) && 
+          patientInputRef.current && !patientInputRef.current.contains(event.target as Node)) {
+        setShowPatientDropdown(false);
+      }
     };
 
-    if (showFilterDropdown) {
+    if (showFilterDropdown || showPatientDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showFilterDropdown]);
+  }, [showFilterDropdown, showPatientDropdown]);
+
+  // Handle ESC key to close create panel
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showCreateModal) {
+        setShowCreateModal(false);
+        setFormData({ title: '', date: '', time: '', duration: '30', notes: '', patient_id: '' });
+      }
+    };
+
+    if (showCreateModal) {
+      document.addEventListener('keydown', handleEscKey);
+      // Prevent body scroll when panel is open
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+      document.body.style.overflow = '';
+    };
+  }, [showCreateModal]);
+
+  // Focus trap for create panel
+  useEffect(() => {
+    if (!showCreateModal || !createPanelRef.current) return;
+
+    const panel = createPanelRef.current;
+    const focusableElements = panel.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+    // Focus first element when panel opens
+    if (firstElement) {
+      firstElement.focus();
+    }
+
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    };
+
+    panel.addEventListener('keydown', handleTabKey);
+    return () => {
+      panel.removeEventListener('keydown', handleTabKey);
+    };
+  }, [showCreateModal]);
 
   // Scroll to center current day on mobile with horizontal scrolling
   useEffect(() => {
@@ -689,12 +972,107 @@ export const MeetingsView: React.FC = () => {
     });
   };
 
-  // Create new appointment
-  const createAppointment = async () => {
-    if (!user?.id || !formData.title || !formData.date || !formData.time || !formData.patient_id) {
-      setError('Lütfen tüm zorunlu alanları doldurun');
+  // Get selected patient display name
+  const getSelectedPatientName = () => {
+    if (!formData.patient_id) return '';
+    const patient = patients.find(p => p.id === formData.patient_id);
+    if (!patient) return '';
+    return patient.patient_number ? `#${patient.patient_number} - ${patient.data.name || 'İsimsiz Hasta'}` : (patient.data.name || 'İsimsiz Hasta');
+  };
+
+  // Handle patient selection from autocomplete
+  const handlePatientSelect = (patientId: string) => {
+    setFormData({ ...formData, patient_id: patientId });
+    setPatientSearchQuery('');
+    setShowPatientDropdown(false);
+    setSelectedPatientIndex(-1);
+  };
+
+  // Handle new patient form submission
+  const handleAddNewPatient = async () => {
+    if (!newPatientData.name.trim()) {
+      setError('Hasta ismi zorunludur');
       return;
     }
+
+    setIsAddingPatient(true);
+    setError(null);
+
+    try {
+      const newPatient = await addPatient({
+        name: newPatientData.name.trim(),
+        national_id: newPatientData.national_id.trim() || null,
+        phone: newPatientData.phone.trim() || null,
+        address: newPatientData.address.trim() || null,
+        reason: newPatientData.reason.trim() || null,
+        notes: newPatientData.notes.trim() || null,
+      });
+
+      // Select the newly created patient
+      if (newPatient && newPatient.id) {
+        handlePatientSelect(newPatient.id);
+      }
+      
+      // Reset form and close
+      setNewPatientData({
+        name: '',
+        national_id: '',
+        phone: '',
+        address: '',
+        reason: '',
+        notes: ''
+      });
+      setShowNewPatientForm(false);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Hasta eklenirken bir hata oluştu');
+    } finally {
+      setIsAddingPatient(false);
+    }
+  };
+
+  // Handle keyboard navigation in autocomplete
+  const handlePatientInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showPatientDropdown) {
+      if (e.key === 'Enter' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setShowPatientDropdown(true);
+        setSelectedPatientIndex(0);
+      }
+      return;
+    }
+
+    const maxIndex = filteredPatients.length + (showNewPatientForm ? 0 : 1) - 1; // +1 for "Yeni Hasta Ekle"
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedPatientIndex(prev => (prev < maxIndex ? prev + 1 : 0));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedPatientIndex(prev => (prev > 0 ? prev - 1 : maxIndex));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedPatientIndex >= 0 && selectedPatientIndex < filteredPatients.length) {
+          handlePatientSelect(filteredPatients[selectedPatientIndex].id);
+        } else if (selectedPatientIndex === filteredPatients.length && !showNewPatientForm) {
+          // "Yeni Hasta Ekle" selected
+          setShowNewPatientForm(true);
+          setShowPatientDropdown(false);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setShowPatientDropdown(false);
+        setSelectedPatientIndex(-1);
+        break;
+    }
+  };
+
+  // Internal function to actually create appointment
+  const performCreateAppointment = async (appointmentData: typeof formData) => {
+    if (!user?.id) return;
 
     setCreating(true);
     setError(null);
@@ -706,12 +1084,12 @@ export const MeetingsView: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          title: formData.title,
-          date: formData.date,
-          time: formData.time,
-          duration_minutes: parseInt(formData.duration),
-          notes: formData.notes || undefined,
-          patient_id: formData.patient_id
+          title: appointmentData.title,
+          date: appointmentData.date,
+          time: appointmentData.time,
+          duration_minutes: parseInt(appointmentData.duration) || 30,
+          notes: appointmentData.notes || undefined,
+          patient_id: appointmentData.patient_id
         }),
       });
 
@@ -719,7 +1097,11 @@ export const MeetingsView: React.FC = () => {
 
       if (data.success) {
         setShowCreateModal(false);
-        setFormData({ title: '', date: '', time: '', duration: '60', notes: '', patient_id: '' });
+        setFormData({ title: '', date: '', time: '', duration: '30', notes: '', patient_id: '' });
+        setPatientSearchQuery('');
+        setShowPatientDropdown(false);
+        setShowNewPatientForm(false);
+        setNewPatientData({ name: '', national_id: '', phone: '', address: '', reason: '', notes: '' });
         await fetchEvents();
       } else {
         throw new Error(data.error || 'Randevu oluşturulamadı');
@@ -729,6 +1111,73 @@ export const MeetingsView: React.FC = () => {
     } finally {
       setCreating(false);
     }
+  };
+
+  // Create new appointment
+  const createAppointment = async () => {
+    if (!user?.id || !formData.title || !formData.date || !formData.time || !formData.patient_id) {
+      setError('Lütfen tüm zorunlu alanları doldurun');
+      return;
+    }
+
+    // Calculate start and end times
+    const startDateTime = new Date(`${formData.date}T${formData.time}`);
+    const duration = parseInt(formData.duration) || 30;
+    const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
+
+    // Check for conflicts
+    const conflicts = checkAppointmentConflict(startDateTime, endDateTime);
+    if (conflicts.length > 0) {
+      setConflictWarning(conflicts);
+      setPendingAppointment({
+        type: 'create',
+        start: startDateTime,
+        end: endDateTime,
+        formData: { ...formData }
+      });
+      setShowConflictModal(true);
+      return;
+    }
+
+    // No conflicts, proceed with creation
+    await performCreateAppointment(formData);
+  };
+
+  // Handle conflict override
+  const handleConflictOverride = async () => {
+    if (!pendingAppointment) return;
+
+    setShowConflictModal(false);
+    setConflictWarning([]);
+
+    if (pendingAppointment.type === 'create' && pendingAppointment.formData) {
+      // Restore form data and create with override
+      setFormData(pendingAppointment.formData);
+      await performCreateAppointment(pendingAppointment.formData);
+    } else if (pendingAppointment.type === 'drop' && pendingAppointment.originalEvent) {
+      // Perform drop with override
+      await performEventDrop(
+        pendingAppointment.originalEvent,
+        pendingAppointment.start,
+        pendingAppointment.end
+      );
+    } else if (pendingAppointment.type === 'resize' && pendingAppointment.originalEvent) {
+      // Perform resize with override
+      await performEventResize(
+        pendingAppointment.originalEvent,
+        pendingAppointment.start,
+        pendingAppointment.end
+      );
+    }
+
+    setPendingAppointment(null);
+  };
+
+  // Handle conflict cancel
+  const handleConflictCancel = () => {
+    setShowConflictModal(false);
+    setConflictWarning([]);
+    setPendingAppointment(null);
   };
 
   // Connection gating and Google connect UI removed
@@ -887,7 +1336,14 @@ export const MeetingsView: React.FC = () => {
                 )}
               </div>
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => {
+                  setFormData({ title: '', date: '', time: '', duration: '30', notes: '', patient_id: '' });
+                  setPatientSearchQuery('');
+                  setShowPatientDropdown(false);
+                  setShowNewPatientForm(false);
+                  setNewPatientData({ name: '', national_id: '', phone: '', address: '', reason: '', notes: '' });
+                  setShowCreateModal(true);
+                }}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-1 sm:space-x-2"
                 disabled={!!syncingEventId}
               >
@@ -1024,138 +1480,410 @@ export const MeetingsView: React.FC = () => {
       )}
       </div>
 
-      {/* Create Appointment Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[calc(100vh-2rem)] flex flex-col">
-            <div className="flex items-center justify-between p-3 sm:p-6 border-b border-gray-200 flex-shrink-0">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Yeni Randevu Oluştur</h2>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Başlık <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Örn: Toplantı: Ahmet Yılmaz"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-emerald-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Hasta <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.patient_id}
-                  onChange={(e) => setFormData({ ...formData, patient_id: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-emerald-400"
-                  required
+      {/* Create Appointment Side Panel */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black bg-opacity-30 z-40"
+              onClick={() => {
+                setShowCreateModal(false);
+                setFormData({ title: '', date: '', time: '', duration: '30', notes: '', patient_id: '' });
+                setPatientSearchQuery('');
+                setShowPatientDropdown(false);
+                setShowNewPatientForm(false);
+                setNewPatientData({ name: '', national_id: '', phone: '', address: '', reason: '', notes: '' });
+              }}
+              aria-hidden="true"
+            />
+            
+            {/* Side Panel */}
+            <motion.div
+              ref={createPanelRef}
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed right-0 top-0 h-full w-full md:w-[480px] md:max-w-md bg-white shadow-2xl z-50 overflow-hidden flex flex-col"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="create-appointment-title"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
+                <h2 id="create-appointment-title" className="text-lg sm:text-xl font-semibold text-gray-900">
+                  Yeni Randevu Oluştur
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setFormData({ title: '', date: '', time: '', duration: '30', notes: '', patient_id: '' });
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                  aria-label="Kapat"
                 >
-                  <option value="">Hasta seçiniz</option>
-                  {patients.map((patient) => (
-                    <option key={patient.id} value={patient.id}>
-                      {patient.patient_number ? `#${patient.patient_number} - ` : ''}{patient.data.name || 'İsimsiz Hasta'}
-                    </option>
-                  ))}
-                </select>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tarih <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-emerald-400"
-                />
-              </div>
+              {/* Form Content */}
+              <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    İşlem <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Örnek: Muayene"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                    autoFocus
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Saat <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="time"
-                  value={formData.time}
-                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-emerald-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Süre (dakika)
-                </label>
-                <input
-                  type="number"
-                  value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                  min="15"
-                  step="15"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-emerald-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notlar
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Ek notlar..."
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-emerald-400"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end space-x-2 sm:space-x-3 p-3 sm:p-6 border-t border-gray-200 flex-shrink-0 bg-white">
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setFormData({ title: '', date: '', time: '', duration: '60', notes: '', patient_id: '' });
-                }}
-                className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                İptal
-              </button>
-              <button
-                onClick={createAppointment}
-                disabled={creating || !formData.title || !formData.date || !formData.time || !formData.patient_id}
-                className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              >
-                {creating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Oluşturuluyor...</span>
-                  </>
+                {/* Patient Autocomplete */}
+                {!showNewPatientForm ? (
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hasta <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        ref={patientInputRef}
+                        type="text"
+                        value={formData.patient_id ? getSelectedPatientName() : patientSearchQuery}
+                        onChange={(e) => {
+                          setPatientSearchQuery(e.target.value);
+                          setFormData({ ...formData, patient_id: '' });
+                          setShowPatientDropdown(true);
+                          setSelectedPatientIndex(-1);
+                        }}
+                        onFocus={() => {
+                          setShowPatientDropdown(true);
+                          if (!formData.patient_id) {
+                            setPatientSearchQuery('');
+                          }
+                        }}
+                        onKeyDown={handlePatientInputKeyDown}
+                        placeholder="Hasta ara veya seçiniz..."
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                        required
+                      />
+                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                      
+                      {/* Dropdown */}
+                      {showPatientDropdown && (
+                        <div
+                          ref={patientDropdownRef}
+                          className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto"
+                        >
+                          {filteredPatients.length > 0 ? (
+                            <>
+                              {filteredPatients.map((patient, index) => (
+                                <button
+                                  key={patient.id}
+                                  type="button"
+                                  onClick={() => handlePatientSelect(patient.id)}
+                                  className={`w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors ${
+                                    selectedPatientIndex === index ? 'bg-emerald-50' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <User className="w-4 h-4 text-gray-400" />
+                                    <span className="text-sm text-gray-900">
+                                      {patient.patient_number ? `#${patient.patient_number} - ` : ''}
+                                      {patient.data.name || 'İsimsiz Hasta'}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowNewPatientForm(true);
+                                  setShowPatientDropdown(false);
+                                }}
+                                className={`w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors border-t border-gray-200 ${
+                                  selectedPatientIndex === filteredPatients.length ? 'bg-emerald-50' : ''
+                                }`}
+                              >
+                                <div className="flex items-center space-x-2 text-emerald-600">
+                                  <Plus className="w-4 h-4" />
+                                  <span className="text-sm font-medium">Yeni Hasta Ekle</span>
+                                </div>
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowNewPatientForm(true);
+                                setShowPatientDropdown(false);
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-center space-x-2 text-emerald-600">
+                                <Plus className="w-4 h-4" />
+                                <span className="text-sm font-medium">Yeni Hasta Ekle</span>
+                              </div>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 ) : (
-                  <span>Oluştur</span>
+                  /* New Patient Form */
+                  <div className="space-y-4 border border-emerald-200 rounded-lg p-4 bg-emerald-50">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-900">Yeni Hasta Ekle</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewPatientForm(false);
+                          setNewPatientData({
+                            name: '',
+                            national_id: '',
+                            phone: '',
+                            address: '',
+                            reason: '',
+                            notes: ''
+                          });
+                        }}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        İsim <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newPatientData.name}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, name: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                        placeholder="Hasta adı soyadı"
+                        disabled={isAddingPatient}
+                        autoFocus
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        TC / Pasaport No
+                      </label>
+                      <input
+                        type="text"
+                        value={newPatientData.national_id}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, national_id: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                        disabled={isAddingPatient}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Telefon
+                      </label>
+                      <PhoneInputField
+                        value={newPatientData.phone}
+                        onChange={(phone) => setNewPatientData({ ...newPatientData, phone })}
+                        disabled={isAddingPatient}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Adres
+                      </label>
+                      <input
+                        type="text"
+                        value={newPatientData.address}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, address: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                        disabled={isAddingPatient}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Başvuru Nedeni
+                      </label>
+                      <input
+                        type="text"
+                        value={newPatientData.reason}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, reason: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                        placeholder="örn. Migren, Yüksek Tansiyon"
+                        disabled={isAddingPatient}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Notlar
+                      </label>
+                      <textarea
+                        value={newPatientData.notes}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, notes: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"
+                        rows={3}
+                        placeholder="Ek notlar..."
+                        disabled={isAddingPatient}
+                      />
+                    </div>
+
+                    <div className="flex space-x-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewPatientForm(false);
+                          setNewPatientData({
+                            name: '',
+                            national_id: '',
+                            phone: '',
+                            address: '',
+                            reason: '',
+                            notes: ''
+                          });
+                        }}
+                        className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                        disabled={isAddingPatient}
+                      >
+                        İptal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddNewPatient}
+                        disabled={isAddingPatient || !newPatientData.name.trim()}
+                        className="flex-1 px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-colors"
+                      >
+                        {isAddingPatient ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Ekleniyor...</span>
+                          </>
+                        ) : (
+                          <span>Hasta Ekle</span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tarih <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Saat <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.time}
+                    onChange={(e) => {
+                      const timeValue = e.target.value;
+                      if (timeValue) {
+                        // Validate and snap to 15-minute intervals (00/15/30/45)
+                        const [hours, minutes] = timeValue.split(':');
+                        const minutesNum = parseInt(minutes, 10);
+                        const roundedMinutes = Math.round(minutesNum / 15) * 15;
+                        const snappedTime = `${hours}:${String(roundedMinutes).padStart(2, '0')}`;
+                        setFormData({ ...formData, time: snappedTime });
+                      } else {
+                        setFormData({ ...formData, time: timeValue });
+                      }
+                    }}
+                    step="900"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Süre (dakika)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.duration}
+                    onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                    min="15"
+                    step="15"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notlar
+                  </label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="Ek notlar..."
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end space-x-3 p-4 sm:p-6 border-t border-gray-200 flex-shrink-0 bg-white">
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setFormData({ title: '', date: '', time: '', duration: '30', notes: '', patient_id: '' });
+                    setPatientSearchQuery('');
+                    setShowPatientDropdown(false);
+                    setShowNewPatientForm(false);
+                    setNewPatientData({ name: '', national_id: '', phone: '', address: '', reason: '', notes: '' });
+                  }}
+                  className="px-4 py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={createAppointment}
+                  disabled={creating || !formData.title || !formData.date || !formData.time || !formData.patient_id}
+                  className="px-4 py-2.5 text-sm sm:text-base bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-colors"
+                >
+                  {creating ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Oluşturuluyor...</span>
+                    </>
+                  ) : (
+                    <span>Oluştur</span>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Event Details Modal */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[calc(100vh-2rem)] flex flex-col">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-3 sm:p-6 border-b border-gray-200 flex-shrink-0">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Randevu Detayları</h2>
               <button
@@ -1224,7 +1952,7 @@ export const MeetingsView: React.FC = () => {
               )}
             </div>
 
-            <div className="flex items-center justify-end space-x-2 sm:space-x-3 p-3 sm:p-6 border-t border-gray-200 flex-shrink-0 bg-white">
+            <div className="flex items-center justify-end space-x-2 sm:space-x-3 p-3 sm:p-6 border-t border-gray-200 flex-shrink-0 bg-white rounded-b-xl">
               {canModifyEvent(selectedEvent) && (
                 <>
                   <button
@@ -1251,6 +1979,118 @@ export const MeetingsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Conflict Warning Modal */}
+      <AnimatePresence>
+        {showConflictModal && conflictWarning.length > 0 && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black bg-opacity-50 z-50"
+              onClick={handleConflictCancel}
+              aria-hidden="true"
+            />
+            
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 flex items-center justify-center z-50 p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-yellow-600" />
+                    </div>
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+                      Randevu Çakışması
+                    </h2>
+                  </div>
+                  <button
+                    onClick={handleConflictCancel}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    aria-label="Kapat"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <p className="text-sm text-yellow-800">
+                      Seçtiğiniz zaman diliminde <strong>{conflictWarning.length}</strong> randevu bulunmaktadır. 
+                      Yine de devam etmek istiyor musunuz?
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Çakışan Randevular:</h3>
+                    <div className="space-y-2">
+                      {conflictWarning.map((conflict) => {
+                        const conflictStart = conflict.start.dateTime 
+                          ? new Date(conflict.start.dateTime) 
+                          : new Date(conflict.start.date || '');
+                        const conflictEnd = conflict.end.dateTime 
+                          ? new Date(conflict.end.dateTime) 
+                          : new Date(conflict.end.date || '');
+                        const patientName = conflict.patient?.data?.name || 'İsimsiz Hasta';
+                        
+                        return (
+                          <div
+                            key={conflict.id}
+                            className="bg-gray-50 border border-gray-200 rounded-lg p-3"
+                          >
+                            <div className="flex items-start space-x-3">
+                              <div className="w-2 h-2 bg-emerald-600 rounded-full mt-2 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {patientName}: {conflict.summary}
+                                </p>
+                                <div className="flex items-center space-x-2 text-xs text-gray-600 mt-1">
+                                  <Clock className="w-3 h-3" />
+                                  <span>
+                                    {formatTime(conflictStart.toISOString())} - {formatTime(conflictEnd.toISOString())}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-end space-x-3 p-4 sm:p-6 border-t border-gray-200 flex-shrink-0 bg-white">
+                  <button
+                    onClick={handleConflictCancel}
+                    className="px-4 py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    onClick={handleConflictOverride}
+                    className="px-4 py-2.5 text-sm sm:text-base bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  >
+                    Yine de Devam Et
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 };
