@@ -27,7 +27,7 @@ import {
   Menu
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { fetchMedicalFile, updateMedicalFile, fetchPatientAppointments, createPatientAppointment, type Appointment } from '../lib/api';
+import { fetchMedicalFile, updateMedicalFile, fetchPatientAppointments, createPatientAppointment, type Appointment, buildApiUrl } from '../lib/api';
 import { 
   MedicalFileData, 
   MEDICAL_FILE_FIELDS, 
@@ -38,6 +38,7 @@ import {
 import DocumentGenerationModal from './DocumentGenerationModal';
 import { EnhancedChatWidget } from './EnhancedChatWidget';
 import { PhoneInputField } from './PhoneInputField';
+import { AppointmentDetailsModal } from './AppointmentDetailsModal';
 import cordeliaLogo from '../assets/cordelia.png';
 import { Sidebar } from './Sidebar';
 import { ViewType } from '../types';
@@ -134,6 +135,8 @@ const PatientMedicalFileView: React.FC = () => {
   const [showCreateAppointmentModal, setShowCreateAppointmentModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [creatingAppointment, setCreatingAppointment] = useState(false);
+  const [updatingAppointmentStatus, setUpdatingAppointmentStatus] = useState<string | null>(null);
+  const [deletingAppointment, setDeletingAppointment] = useState<string | null>(null);
   const [appointmentFormData, setAppointmentFormData] = useState({
     title: '',
     date: '',
@@ -433,6 +436,71 @@ const PatientMedicalFileView: React.FC = () => {
       setError(errorMessage);
     } finally {
       setCreatingAppointment(false);
+    }
+  };
+
+  const handleStatusUpdate = async (eventId: string, newStatus: 'attended' | 'no_show' | 'cancelled') => {
+    if (!user?.id) return;
+    
+    setUpdatingAppointmentStatus(eventId);
+    try {
+      const response = await fetch(buildApiUrl(`calendar/events/${user.id}/${eventId}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: newStatus
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update the selected appointment state
+        if (selectedAppointment && selectedAppointment.id === eventId) {
+          setSelectedAppointment({
+            ...selectedAppointment,
+            status: newStatus
+          });
+        }
+        // Update appointments list
+        setAppointments(appointments.map(a => 
+          a.id === eventId ? { ...a, status: newStatus } : a
+        ));
+      } else {
+        throw new Error(data.error || 'Failed to update status');
+      }
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Durum güncellenirken bir hata oluştu');
+    } finally {
+      setUpdatingAppointmentStatus(null);
+    }
+  };
+
+  const handleDeleteAppointment = async (eventId: string) => {
+    if (!user?.id) return;
+    
+    setDeletingAppointment(eventId);
+    try {
+      const response = await fetch(buildApiUrl(`calendar/events/${user.id}/${eventId}`), {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Remove from appointments list
+        setAppointments(appointments.filter(a => a.id !== eventId));
+        // Close modal if the deleted appointment was selected
+        if (selectedAppointment && selectedAppointment.id === eventId) {
+          setSelectedAppointment(null);
+        }
+      } else {
+        throw new Error(data.error || 'Failed to delete appointment');
+      }
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Randevu silinirken bir hata oluştu');
+    } finally {
+      setDeletingAppointment(null);
     }
   };
 
@@ -1023,13 +1091,16 @@ const PatientMedicalFileView: React.FC = () => {
           animation: fadeInUp 0.4s ease-out;
         }
       `}</style>
-      <Sidebar
-        currentView={currentView}
-        onViewChange={handleViewChange}
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-        hideMobileHeader={true}
-      />
+      {/* Sidebar - Only visible on mobile */}
+      <div className="md:hidden">
+        <Sidebar
+          currentView={currentView}
+          onViewChange={handleViewChange}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          hideMobileHeader={true}
+        />
+      </div>
       <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
@@ -1371,7 +1442,7 @@ const PatientMedicalFileView: React.FC = () => {
                                     }`}>
                                       {appointment.title}
                                     </h3>
-                                    {appointment.status && appointment.status !== 'confirmed' && (
+                                    {appointment.status && (
                                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                                         appointment.status === 'attended'
                                           ? 'bg-emerald-100 text-emerald-700'
@@ -1386,8 +1457,8 @@ const PatientMedicalFileView: React.FC = () => {
                                           : appointment.status === 'no_show'
                                           ? 'Gelmedi'
                                           : appointment.status === 'cancelled'
-                                          ? 'Randevu iptal'
-                                          : ''}
+                                          ? 'Randevu İptal'
+                                          : 'Onaylandı'}
                                       </span>
                                     )}
                                   </div>
@@ -1489,67 +1560,16 @@ const PatientMedicalFileView: React.FC = () => {
       />
 
       {/* Appointment Details Modal */}
-      {selectedAppointment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Randevu Detayları</h2>
-              <button
-                onClick={() => setSelectedAppointment(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {selectedAppointment.title}
-                </h3>
-                {selectedAppointment.description && (
-                  <p className="text-gray-600">{selectedAppointment.description}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span>{formatAppointmentDate(selectedAppointment.start_time)}</span>
-                </div>
-                
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Clock className="w-4 h-4" />
-                  <span>
-                    {formatAppointmentTime(selectedAppointment.start_time)} - {formatAppointmentTime(selectedAppointment.end_time)}
-                  </span>
-                </div>
-              </div>
-
-              {selectedAppointment.patients && (
-                <div className="border-t border-gray-200 pt-4">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium text-gray-700">Hasta:</span>
-                    <span className="text-sm text-gray-600">
-                      {selectedAppointment.patients.data?.name || 'İsimsiz Hasta'}
-                      {selectedAppointment.patients.patient_number && ` (#${selectedAppointment.patients.patient_number})`}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
-              <button
-                onClick={() => setSelectedAppointment(null)}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-              >
-                Kapat
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AppointmentDetailsModal
+        appointment={selectedAppointment}
+        isOpen={!!selectedAppointment}
+        onClose={() => setSelectedAppointment(null)}
+        onStatusUpdate={handleStatusUpdate}
+        onDelete={handleDeleteAppointment}
+        canModify={true}
+        isUpdating={updatingAppointmentStatus === selectedAppointment?.id}
+        isDeleting={deletingAppointment === selectedAppointment?.id}
+      />
 
       {/* Create Appointment Modal */}
       {showCreateAppointmentModal && (
