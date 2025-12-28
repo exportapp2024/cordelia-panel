@@ -23,7 +23,8 @@ import {
   Syringe,
   MoreHorizontal,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Menu
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { fetchMedicalFile, updateMedicalFile, fetchPatientAppointments, createPatientAppointment, type Appointment } from '../lib/api';
@@ -37,6 +38,9 @@ import {
 import DocumentGenerationModal from './DocumentGenerationModal';
 import { EnhancedChatWidget } from './EnhancedChatWidget';
 import { PhoneInputField } from './PhoneInputField';
+import cordeliaLogo from '../assets/cordelia.png';
+import { Sidebar } from './Sidebar';
+import { ViewType } from '../types';
 
 interface NotesDisplayProps {
   notes: string;
@@ -143,6 +147,8 @@ const PatientMedicalFileView: React.FC = () => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deleteConfirmProcedureId, setDeleteConfirmProcedureId] = useState<string | null>(null);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<ViewType>('patients');
 
   const loadMedicalFile = useCallback(async () => {
     try {
@@ -248,6 +254,18 @@ const PatientMedicalFileView: React.FC = () => {
       loadAppointments();
     }
   }, [showAppointments, user?.id, patientId, loadAppointments]);
+
+  // Close sidebar on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Check for unsaved changes
   useEffect(() => {
@@ -978,6 +996,16 @@ const PatientMedicalFileView: React.FC = () => {
     );
   }
 
+  const handleViewChange = (view: ViewType) => {
+    setCurrentView(view);
+    // Close sidebar on mobile after selection
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+    // Navigate to dashboard with the selected view
+    navigate(`/dashboard?view=${view}`);
+  };
+
   return (
     <>
       <style>{`
@@ -995,10 +1023,78 @@ const PatientMedicalFileView: React.FC = () => {
           animation: fadeInUp 0.4s ease-out;
         }
       `}</style>
-      <div className="min-h-screen bg-gray-50">
+      <Sidebar
+        currentView={currentView}
+        onViewChange={handleViewChange}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        hideMobileHeader={true}
+      />
+      <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Mobile Header - Same as Sidebar */}
+        <div className="md:hidden px-4 py-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-lg overflow-hidden">
+                <img src={cordeliaLogo} alt="Cordelia" className="w-full h-full object-contain" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">Cordelia</h1>
+              </div>
+            </div>
+            <button
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+          {/* Action Buttons - Same height, same row */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleBackClick}
+              className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 transition-colors h-10"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              <span>Geri</span>
+            </button>
+            <button
+              onClick={() => setShowDocumentModal(true)}
+              className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors h-10"
+            >
+              <Download className="w-5 h-5 mr-2" />
+              <span>Belge</span>
+            </button>
+            {!isReadOnly && (
+              <button
+                onClick={handleSave}
+                disabled={saving || !hasUnsavedChanges}
+                className={`inline-flex items-center justify-center px-4 py-2 rounded-lg transition-colors shadow-sm h-10 ${
+                  hasUnsavedChanges
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    <span>Kaydediliyor...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5 mr-2" />
+                    <span>{hasUnsavedChanges ? 'Kaydet' : 'Kaydedildi'}</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-4">
               <button
@@ -1006,8 +1102,7 @@ const PatientMedicalFileView: React.FC = () => {
                 className="inline-flex items-center px-4 py-3 rounded-lg border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 mr-2" />
-                <span className="hidden sm:inline">Hasta Listesi</span>
-                <span className="sm:hidden">Geri</span>
+                <span>Hasta Listesi</span>
               </button>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Cordelia</h1>
@@ -1021,8 +1116,7 @@ const PatientMedicalFileView: React.FC = () => {
                 className="inline-flex items-center px-4 py-3 rounded-lg border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
               >
                 <Download className="w-5 h-5 mr-2" />
-                <span className="hidden sm:inline">Belge Oluştur</span>
-                <span className="sm:hidden">Belge</span>
+                <span>Belge Oluştur</span>
               </button>
               
               {!isReadOnly && (
