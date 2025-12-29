@@ -48,6 +48,7 @@ interface CalendarEvent {
     displayName?: string;
   };
   createdBy?: string; // User ID who created the event
+  created_by_name?: string | null; // Name of the user who created the event
   status?: 'attended' | 'no_show' | 'cancelled' | 'confirmed' | null; // Appointment status
   patient?: {
     id: string;
@@ -264,6 +265,7 @@ export const MeetingsView: React.FC = () => {
           start: { dateTime: e.start_time },
           end: { dateTime: e.end_time },
           createdBy: e.created_by || e.user_id, // Use created_by from backend, fallback to user_id
+          created_by_name: e.created_by_name || null, // Include creator name
           status: e.status || 'confirmed', // Include status field
           patient: e.patients && Array.isArray(e.patients) && e.patients.length > 0 ? e.patients[0] : (e.patients || null),
         }));
@@ -336,10 +338,20 @@ export const MeetingsView: React.FC = () => {
   // Handle slot selection (clicking on empty time slot)
   const handleSelectSlot = (slotInfo: SlotInfo) => {
     const start = moment(slotInfo.start);
+    const end = moment(slotInfo.end);
+    
     // Snap to nearest 15-minute interval (00/15/30/45)
     const minutes = start.minute();
     const roundedMinutes = Math.round(minutes / 15) * 15;
     start.minute(roundedMinutes).second(0);
+    
+    // Calculate duration in minutes from selected time range
+    const durationInMinutes = end.diff(start, 'minutes');
+    
+    // Check if it's a single click (slotInfo.action === 'click') vs drag (action === 'select')
+    // Single click: use 30 minutes default
+    // Drag: use actual selected duration
+    const finalDuration = slotInfo.action === 'click' ? 30 : durationInMinutes;
     
     const formattedDate = start.format('YYYY-MM-DD');
     const formattedTime = start.format('HH:mm');
@@ -348,7 +360,7 @@ export const MeetingsView: React.FC = () => {
       title: '',
       date: formattedDate,
       time: formattedTime,
-      duration: '30',
+      duration: finalDuration.toString(),
       notes: '',
       patient_id: ''
     });
@@ -430,7 +442,11 @@ export const MeetingsView: React.FC = () => {
 
   // Event style getter for custom colors
   const eventStyleGetter = (event: CalendarEventRBC) => {
-    const backgroundColor = '#10b981'; // emerald-500
+    const isOwner = !event.resource?.createdBy || event.resource?.createdBy === user?.id;
+    // Use different shades of green (emerald): lighter for others, normal for owner
+    const backgroundColor = isOwner ? "#10b981" : "#10b981b3"; // emerald-500 vs emerald-300
+    const borderLeftColor = isOwner ? '#059669' : '#34d399'; // emerald-600 vs emerald-400
+    
     const conflictPos = getConflictPosition(event.resource?.id || '');
     
     const baseStyle: React.CSSProperties = {
@@ -438,9 +454,9 @@ export const MeetingsView: React.FC = () => {
       borderRadius: '4px',
       color: 'white',
       border: 'none',
-      borderLeft: '3px solid #059669',
+      borderLeft: `3px solid ${borderLeftColor}`,
       display: 'block',
-      padding: '2px 5px',
+      padding: '0.3rem',
       fontSize: '12px',
       fontWeight: 500
     };
@@ -732,6 +748,7 @@ export const MeetingsView: React.FC = () => {
       start_time: event.start.dateTime || event.start.date || '',
       end_time: event.end.dateTime || event.end.date || '',
       created_by: event.createdBy,
+      created_by_name: event.created_by_name,
       status: event.status || 'confirmed',
       patient_id: event.patient?.id || '',
       patients: event.patient ? {
@@ -1468,6 +1485,7 @@ export const MeetingsView: React.FC = () => {
                   return event.patient?.id && filterPatientIds.includes(event.patient.id);
                 })
                 .map(convertToRBCEvent)}
+              selected={selectedEvent ? convertToRBCEvent(selectedEvent) : undefined}
               startAccessor={(e) => (e as CalendarEventRBC).start as Date}
               endAccessor={(e) => (e as CalendarEventRBC).end as Date}
               defaultView={Views.WEEK}

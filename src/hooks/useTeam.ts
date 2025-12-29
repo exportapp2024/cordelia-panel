@@ -219,12 +219,13 @@ export const useTeam = (userId: string | null) => {
       const data = await response.json();
       
       if (data.success) {
-        // Refresh invitations and team info
-        await getPendingInvitations();
-        // Small delay to ensure backend has processed
-        await new Promise(resolve => setTimeout(resolve, 300));
-        await getTeamInfo();
-        await getTeamMembers(); // Also refresh team members to update UI
+        // Refresh all team-related data in parallel for better performance
+        // Backend has already processed the invitation, so no delay needed
+        await Promise.all([
+          getPendingInvitations(),
+          getTeamInfo(),
+          getTeamMembers()
+        ]);
         return data.teamInfo;
       } else {
         throw new Error(data.error || 'Failed to accept invitation');

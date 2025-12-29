@@ -153,25 +153,9 @@ export const TeamManagementSection: React.FC = () => {
   const handleAcceptInvitation = async (invitationId: string) => {
     try {
       await acceptInvitation(invitationId);
-      // Refresh all team data after accepting invitation
-      // Force refresh by calling all functions sequentially
-      await getTeamInfo();
-      // Small delay to ensure backend has processed the invitation
-      await new Promise(resolve => setTimeout(resolve, 500));
-      await getTeamMembers();
-      await getPendingInvitations();
+      // acceptInvitation hook already refreshes pendingInvitations, teamInfo, and teamMembers
+      // Only refresh sentInvitations if needed (for the sender's view)
       await getSentInvitations();
-      // Refresh team details - wait for it to complete
-      const response = await fetch(buildApiUrl(`calendar/team/details/${user?.id}`));
-      const data = await response.json();
-      if (data.success && data.team) {
-        setTeamDetails(data.team);
-      } else {
-        // If no team returned, set to null to trigger re-render
-        setTeamDetails(null);
-      }
-      // Force another refresh of teamInfo to ensure UI updates
-      await getTeamInfo();
       setInviteMessage('Davet kabul edildi!');
       setTimeout(() => setInviteMessage(null), 3000);
     } catch (error) {
