@@ -1884,19 +1884,9 @@ export const MeetingsView: React.FC = () => {
                     type="time"
                     value={formData.time}
                     onChange={(e) => {
-                      const timeValue = e.target.value;
-                      if (timeValue) {
-                        // Validate and snap to 15-minute intervals (00/15/30/45)
-                        const [hours, minutes] = timeValue.split(':');
-                        const minutesNum = parseInt(minutes, 10);
-                        const roundedMinutes = Math.round(minutesNum / 15) * 15;
-                        const snappedTime = `${hours}:${String(roundedMinutes).padStart(2, '0')}`;
-                        setFormData({ ...formData, time: snappedTime });
-                      } else {
-                        setFormData({ ...formData, time: timeValue });
-                      }
+                      setFormData({ ...formData, time: e.target.value });
                     }}
-                    step="900"
+                    step="60"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
                   />
                 </div>
