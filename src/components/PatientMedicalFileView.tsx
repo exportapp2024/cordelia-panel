@@ -23,10 +23,11 @@ import {
   Syringe,
   MoreHorizontal,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Menu
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { fetchMedicalFile, updateMedicalFile, fetchPatientAppointments, createPatientAppointment, type Appointment } from '../lib/api';
+import { fetchMedicalFile, updateMedicalFile, fetchPatientAppointments, createPatientAppointment, type Appointment, buildApiUrl } from '../lib/api';
 import { 
   MedicalFileData, 
   MEDICAL_FILE_FIELDS, 
@@ -37,6 +38,10 @@ import {
 import DocumentGenerationModal from './DocumentGenerationModal';
 import { EnhancedChatWidget } from './EnhancedChatWidget';
 import { PhoneInputField } from './PhoneInputField';
+import { AppointmentDetailsModal } from './AppointmentDetailsModal';
+import cordeliaLogo from '../assets/cordelia.png';
+import { Sidebar } from './Sidebar';
+import { ViewType } from '../types';
 
 interface NotesDisplayProps {
   notes: string;
@@ -130,6 +135,8 @@ const PatientMedicalFileView: React.FC = () => {
   const [showCreateAppointmentModal, setShowCreateAppointmentModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [creatingAppointment, setCreatingAppointment] = useState(false);
+  const [updatingAppointmentStatus, setUpdatingAppointmentStatus] = useState<string | null>(null);
+  const [deletingAppointment, setDeletingAppointment] = useState<string | null>(null);
   const [appointmentFormData, setAppointmentFormData] = useState({
     title: '',
     date: '',
@@ -143,6 +150,8 @@ const PatientMedicalFileView: React.FC = () => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deleteConfirmProcedureId, setDeleteConfirmProcedureId] = useState<string | null>(null);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<ViewType>('patients');
 
   const loadMedicalFile = useCallback(async () => {
     try {
@@ -248,6 +257,18 @@ const PatientMedicalFileView: React.FC = () => {
       loadAppointments();
     }
   }, [showAppointments, user?.id, patientId, loadAppointments]);
+
+  // Close sidebar on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Check for unsaved changes
   useEffect(() => {
@@ -415,6 +436,71 @@ const PatientMedicalFileView: React.FC = () => {
       setError(errorMessage);
     } finally {
       setCreatingAppointment(false);
+    }
+  };
+
+  const handleStatusUpdate = async (eventId: string, newStatus: 'attended' | 'no_show' | 'cancelled') => {
+    if (!user?.id) return;
+    
+    setUpdatingAppointmentStatus(eventId);
+    try {
+      const response = await fetch(buildApiUrl(`calendar/events/${user.id}/${eventId}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: newStatus
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update the selected appointment state
+        if (selectedAppointment && selectedAppointment.id === eventId) {
+          setSelectedAppointment({
+            ...selectedAppointment,
+            status: newStatus
+          });
+        }
+        // Update appointments list
+        setAppointments(appointments.map(a => 
+          a.id === eventId ? { ...a, status: newStatus } : a
+        ));
+      } else {
+        throw new Error(data.error || 'Failed to update status');
+      }
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Durum güncellenirken bir hata oluştu');
+    } finally {
+      setUpdatingAppointmentStatus(null);
+    }
+  };
+
+  const handleDeleteAppointment = async (eventId: string) => {
+    if (!user?.id) return;
+    
+    setDeletingAppointment(eventId);
+    try {
+      const response = await fetch(buildApiUrl(`calendar/events/${user.id}/${eventId}`), {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Remove from appointments list
+        setAppointments(appointments.filter(a => a.id !== eventId));
+        // Close modal if the deleted appointment was selected
+        if (selectedAppointment && selectedAppointment.id === eventId) {
+          setSelectedAppointment(null);
+        }
+      } else {
+        throw new Error(data.error || 'Failed to delete appointment');
+      }
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Randevu silinirken bir hata oluştu');
+    } finally {
+      setDeletingAppointment(null);
     }
   };
 
@@ -978,6 +1064,16 @@ const PatientMedicalFileView: React.FC = () => {
     );
   }
 
+  const handleViewChange = (view: ViewType) => {
+    setCurrentView(view);
+    // Close sidebar on mobile after selection
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+    // Navigate to dashboard with the selected view
+    navigate(`/dashboard?view=${view}`);
+  };
+
   return (
     <>
       <style>{`
@@ -995,10 +1091,81 @@ const PatientMedicalFileView: React.FC = () => {
           animation: fadeInUp 0.4s ease-out;
         }
       `}</style>
-      <div className="min-h-screen bg-gray-50">
+      {/* Sidebar - Only visible on mobile */}
+      <div className="md:hidden">
+        <Sidebar
+          currentView={currentView}
+          onViewChange={handleViewChange}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          hideMobileHeader={true}
+        />
+      </div>
+      <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Mobile Header - Same as Sidebar */}
+        <div className="md:hidden px-4 py-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-lg overflow-hidden">
+                <img src={cordeliaLogo} alt="Cordelia" className="w-full h-full object-contain" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">Cordelia</h1>
+              </div>
+            </div>
+            <button
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+          {/* Action Buttons - Same height, same row */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleBackClick}
+              className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 transition-colors h-10"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              <span>Geri</span>
+            </button>
+            <button
+              onClick={() => setShowDocumentModal(true)}
+              className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors h-10"
+            >
+              <Download className="w-5 h-5 mr-2" />
+              <span>Belge</span>
+            </button>
+            {!isReadOnly && (
+              <button
+                onClick={handleSave}
+                disabled={saving || !hasUnsavedChanges}
+                className={`inline-flex items-center justify-center px-4 py-2 rounded-lg transition-colors shadow-sm h-10 ${
+                  hasUnsavedChanges
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    <span>Kaydediliyor...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5 mr-2" />
+                    <span>{hasUnsavedChanges ? 'Kaydet' : 'Kaydedildi'}</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-4">
               <button
@@ -1006,8 +1173,7 @@ const PatientMedicalFileView: React.FC = () => {
                 className="inline-flex items-center px-4 py-3 rounded-lg border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 mr-2" />
-                <span className="hidden sm:inline">Hasta Listesi</span>
-                <span className="sm:hidden">Geri</span>
+                <span>Hasta Listesi</span>
               </button>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Cordelia</h1>
@@ -1021,8 +1187,7 @@ const PatientMedicalFileView: React.FC = () => {
                 className="inline-flex items-center px-4 py-3 rounded-lg border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
               >
                 <Download className="w-5 h-5 mr-2" />
-                <span className="hidden sm:inline">Belge Oluştur</span>
-                <span className="sm:hidden">Belge</span>
+                <span>Belge Oluştur</span>
               </button>
               
               {!isReadOnly && (
@@ -1277,7 +1442,7 @@ const PatientMedicalFileView: React.FC = () => {
                                     }`}>
                                       {appointment.title}
                                     </h3>
-                                    {appointment.status && appointment.status !== 'confirmed' && (
+                                    {appointment.status && (
                                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                                         appointment.status === 'attended'
                                           ? 'bg-emerald-100 text-emerald-700'
@@ -1292,8 +1457,8 @@ const PatientMedicalFileView: React.FC = () => {
                                           : appointment.status === 'no_show'
                                           ? 'Gelmedi'
                                           : appointment.status === 'cancelled'
-                                          ? 'Randevu iptal'
-                                          : ''}
+                                          ? 'Randevu İptal'
+                                          : 'Onaylandı'}
                                       </span>
                                     )}
                                   </div>
@@ -1395,67 +1560,16 @@ const PatientMedicalFileView: React.FC = () => {
       />
 
       {/* Appointment Details Modal */}
-      {selectedAppointment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Randevu Detayları</h2>
-              <button
-                onClick={() => setSelectedAppointment(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {selectedAppointment.title}
-                </h3>
-                {selectedAppointment.description && (
-                  <p className="text-gray-600">{selectedAppointment.description}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span>{formatAppointmentDate(selectedAppointment.start_time)}</span>
-                </div>
-                
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Clock className="w-4 h-4" />
-                  <span>
-                    {formatAppointmentTime(selectedAppointment.start_time)} - {formatAppointmentTime(selectedAppointment.end_time)}
-                  </span>
-                </div>
-              </div>
-
-              {selectedAppointment.patients && (
-                <div className="border-t border-gray-200 pt-4">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium text-gray-700">Hasta:</span>
-                    <span className="text-sm text-gray-600">
-                      {selectedAppointment.patients.data?.name || 'İsimsiz Hasta'}
-                      {selectedAppointment.patients.patient_number && ` (#${selectedAppointment.patients.patient_number})`}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
-              <button
-                onClick={() => setSelectedAppointment(null)}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-              >
-                Kapat
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AppointmentDetailsModal
+        appointment={selectedAppointment}
+        isOpen={!!selectedAppointment}
+        onClose={() => setSelectedAppointment(null)}
+        onStatusUpdate={handleStatusUpdate}
+        onDelete={handleDeleteAppointment}
+        canModify={true}
+        isUpdating={updatingAppointmentStatus === selectedAppointment?.id}
+        isDeleting={deletingAppointment === selectedAppointment?.id}
+      />
 
       {/* Create Appointment Modal */}
       {showCreateAppointmentModal && (

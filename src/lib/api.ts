@@ -122,6 +122,7 @@ export interface Appointment {
       phone?: string;
       address?: string;
     };
+    deleted_at?: string | null;
   };
 }
 

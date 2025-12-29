@@ -4,8 +4,9 @@ import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, ChevronLeft, Chevr
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePatients } from '../hooks/usePatients';
-import { buildApiUrl } from '../lib/api';
+import { buildApiUrl, type Appointment } from '../lib/api';
 import { PhoneInputField } from './PhoneInputField';
+import { AppointmentDetailsModal } from './AppointmentDetailsModal';
 import { Calendar, momentLocalizer, SlotInfo, Event as RBCEvent, Views, View } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
@@ -59,6 +60,7 @@ interface CalendarEvent {
       reason?: string;
       notes?: string;
     };
+    deleted_at?: string | null;
   } | null;
 }
 
@@ -66,6 +68,17 @@ interface CalendarEvent {
 interface CalendarEventRBC extends RBCEvent {
   resource: CalendarEvent;
 }
+
+// Helper function to display patient name with deleted patient handling
+const displayPatientName = (patient: CalendarEvent['patient'] | null): string => {
+  if (!patient) return 'İsimsiz Hasta';
+  if (patient.deleted_at) {
+    return patient.patient_number 
+      ? `Silinen Hasta (#${patient.patient_number})`
+      : 'Silinen Hasta';
+  }
+  return patient.data.name || 'İsimsiz Hasta';
+};
 
 export const MeetingsView: React.FC = () => {
   const { user } = useAuth();
@@ -139,17 +152,20 @@ export const MeetingsView: React.FC = () => {
       .replace(/ç/g, 'c');
   };
 
-  // Filter patients based on search query
+  // Filter patients based on search query (exclude deleted patients)
   const filteredPatients = useMemo(() => {
+    // First filter out deleted patients
+    const activePatients = patients.filter(patient => !patient.deleted_at);
+    
     if (!patientSearchQuery.trim()) {
-      return [...patients].sort((a, b) => {
+      return [...activePatients].sort((a, b) => {
         const nameA = a.data.name || 'İsimsiz Hasta';
         const nameB = b.data.name || 'İsimsiz Hasta';
         return nameA.localeCompare(nameB, 'tr');
       });
     }
     const normalizedSearch = normalizeForSearch(patientSearchQuery);
-    return patients
+    return activePatients
       .filter(patient => {
         const patientName = patient.data.name || '';
         return normalizeForSearch(patientName).includes(normalizedSearch);
@@ -171,8 +187,8 @@ export const MeetingsView: React.FC = () => {
       : new Date(event.end.date || '');
 
     // Add patient name to title if available
-    const patientName = event.patient?.data?.name;
-    const displayTitle = patientName 
+    const patientName = displayPatientName(event.patient);
+    const displayTitle = patientName && patientName !== 'İsimsiz Hasta'
       ? `${patientName}: ${event.summary}` 
       : event.summary;
 
@@ -707,6 +723,26 @@ export const MeetingsView: React.FC = () => {
     }
   };
 
+  // Convert CalendarEvent to Appointment format
+  const convertToAppointment = (event: CalendarEvent): Appointment => {
+    return {
+      id: event.id,
+      title: event.summary,
+      description: event.description,
+      start_time: event.start.dateTime || event.start.date || '',
+      end_time: event.end.dateTime || event.end.date || '',
+      created_by: event.createdBy,
+      status: event.status || 'confirmed',
+      patient_id: event.patient?.id || '',
+      patients: event.patient ? {
+        id: event.patient.id,
+        patient_number: event.patient.patient_number,
+        data: event.patient.data,
+        deleted_at: event.patient.deleted_at || null
+      } : undefined
+    };
+  };
+
   // Handle status update
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const handleStatusUpdate = async (eventId: string, newStatus: 'attended' | 'no_show' | 'cancelled') => {
@@ -1019,6 +1055,12 @@ export const MeetingsView: React.FC = () => {
     if (!formData.patient_id) return '';
     const patient = patients.find(p => p.id === formData.patient_id);
     if (!patient) return '';
+    // Use displayPatientName helper, but adapt for form display format
+    if (patient.deleted_at) {
+      return patient.patient_number 
+        ? `#${patient.patient_number} - Silinen Hasta`
+        : 'Silinen Hasta';
+    }
     return patient.patient_number ? `#${patient.patient_number} - ${patient.data.name || 'İsimsiz Hasta'}` : (patient.data.name || 'İsimsiz Hasta');
   };
 
@@ -1348,7 +1390,7 @@ export const MeetingsView: React.FC = () => {
                         />
                         <span className="text-sm font-medium text-gray-900">Tüm Hastalar</span>
                       </label>
-                      {patients.map((patient) => (
+                      {patients.filter(patient => !patient.deleted_at).map((patient) => (
                         <label
                           key={patient.id}
                           className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
@@ -1923,165 +1965,16 @@ export const MeetingsView: React.FC = () => {
       </AnimatePresence>
 
       {/* Event Details Modal */}
-      {selectedEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-3 sm:p-6 border-b border-gray-200 flex-shrink-0">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Randevu Detayları</h2>
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {selectedEvent.summary}
-                </h3>
-                {selectedEvent.description && (
-                  <p className="text-gray-600">{selectedEvent.description}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <CalendarIcon className="w-4 h-4" />
-                  <span>{formatDate(selectedEvent.start.dateTime || selectedEvent.start.date || '')}</span>
-                </div>
-                
-                {selectedEvent.start.dateTime && (
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>
-                      {formatTime(selectedEvent.start.dateTime)} - {formatTime(selectedEvent.end.dateTime || '')}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {selectedEvent.patient && (
-                <div className="border-t border-gray-200 pt-4 space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium text-gray-700">Hasta:</span>
-                    <button
-                      onClick={() => navigate(`/patient-file/${selectedEvent.patient!.id}`)}
-                      className="text-sm text-emerald-600 hover:text-emerald-700 hover:underline font-medium"
-                    >
-                      {selectedEvent.patient.data.name || 'İsimsiz Hasta'}
-                      {selectedEvent.patient.patient_number && ` (#${selectedEvent.patient.patient_number})`}
-                    </button>
-                  </div>
-                  
-                  {/* Status Selection Buttons */}
-                  <div>
-                    <span className="text-sm font-medium text-gray-700 block mb-2">Durum:</span>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleStatusUpdate(selectedEvent.id, 'attended')}
-                        disabled={updatingStatus === selectedEvent.id}
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          selectedEvent.status === 'attended'
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                      >
-                        {updatingStatus === selectedEvent.id && selectedEvent.status === 'attended' ? (
-                          <span className="flex items-center space-x-1">
-                            <RefreshCw className="w-3 h-3 animate-spin" />
-                            <span>Geldi</span>
-                          </span>
-                        ) : (
-                          'Geldi'
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleStatusUpdate(selectedEvent.id, 'no_show')}
-                        disabled={updatingStatus === selectedEvent.id}
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          selectedEvent.status === 'no_show'
-                            ? 'bg-yellow-600 text-white'
-                            : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
-                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                      >
-                        {updatingStatus === selectedEvent.id && selectedEvent.status === 'no_show' ? (
-                          <span className="flex items-center space-x-1">
-                            <RefreshCw className="w-3 h-3 animate-spin" />
-                            <span>Gelmedi</span>
-                          </span>
-                        ) : (
-                          'Gelmedi'
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleStatusUpdate(selectedEvent.id, 'cancelled')}
-                        disabled={updatingStatus === selectedEvent.id}
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          selectedEvent.status === 'cancelled'
-                            ? 'bg-red-600 text-white'
-                            : 'bg-red-50 text-red-700 hover:bg-red-100'
-                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                      >
-                        {updatingStatus === selectedEvent.id && selectedEvent.status === 'cancelled' ? (
-                          <span className="flex items-center space-x-1">
-                            <RefreshCw className="w-3 h-3 animate-spin" />
-                            <span>Randevu iptal</span>
-                          </span>
-                        ) : (
-                          'Randevu iptal'
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedEvent.attendees && selectedEvent.attendees.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">Katılımcılar:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedEvent.attendees.map((attendee, index) => (
-                      <span
-                        key={index}
-                        className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
-                      >
-                        {attendee.displayName || attendee.email}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end space-x-2 sm:space-x-3 p-3 sm:p-6 border-t border-gray-200 flex-shrink-0 bg-white rounded-b-xl">
-              {canModifyEvent(selectedEvent) && (
-                <>
-                  <button
-                    onClick={() => {
-                      if (confirm('Bu etkinliği silmek istediğinize emin misiniz?')) {
-                        handleDeleteEvent(selectedEvent.id);
-                        setSelectedEvent(null);
-                      }
-                    }}
-                    disabled={deletingEvent === selectedEvent.id}
-                    className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-red-300 rounded-lg text-red-700 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    {deletingEvent === selectedEvent.id ? 'Siliniyor...' : 'Sil'}
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-              >
-                Kapat
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AppointmentDetailsModal
+        appointment={selectedEvent ? convertToAppointment(selectedEvent) : null}
+        isOpen={!!selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        onStatusUpdate={handleStatusUpdate}
+        onDelete={canModifyEvent(selectedEvent || {} as CalendarEvent) ? handleDeleteEvent : undefined}
+        canModify={canModifyEvent(selectedEvent || {} as CalendarEvent)}
+        isUpdating={updatingStatus === selectedEvent?.id}
+        isDeleting={deletingEvent === selectedEvent?.id}
+      />
 
       {/* Conflict Warning Modal */}
       <AnimatePresence>
@@ -2146,7 +2039,7 @@ export const MeetingsView: React.FC = () => {
                         const conflictEnd = conflict.end.dateTime 
                           ? new Date(conflict.end.dateTime) 
                           : new Date(conflict.end.date || '');
-                        const patientName = conflict.patient?.data?.name || 'İsimsiz Hasta';
+                        const patientName = displayPatientName(conflict.patient);
                         
                         return (
                           <div
