@@ -9,9 +9,10 @@ interface SidebarProps {
   onViewChange: (view: ViewType) => void;
   isOpen: boolean;
   onToggle: () => void;
+  hideMobileHeader?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isOpen, onToggle }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isOpen, onToggle, hideMobileHeader = false }) => {
   const { user, signOut } = useAuth();
   const menuItems = [
     { id: 'meetings' as ViewType, label: 'Randevular', icon: Calendar },
@@ -32,6 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
   return (
     <>
       {/* Mobile Header - Always visible on mobile */}
+      {!hideMobileHeader && (
       <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-lg overflow-hidden">
@@ -48,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
           {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>
+      )}
 
       {/* Mobile Overlay */}
       {isOpen && (

@@ -30,6 +30,7 @@ export interface Patient {
   medical_file?: any;
   created_at: string;
   updated_at?: string;
+  deleted_at?: string | null;
 }
 
 export type ViewType = 'meetings' | 'patients' | 'settings' | 'patient-file';

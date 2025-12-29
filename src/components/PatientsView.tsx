@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { User, Calendar, Phone, Loader2, AlertCircle, RefreshCw, Plus, X, Search, Edit3, ChevronDown } from 'lucide-react';
+import { User, Calendar, Phone, Loader2, AlertCircle, RefreshCw, Plus, X, Search, Edit3, ChevronDown, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePatients } from '../hooks/usePatients';
 import { useAuth } from '../hooks/useAuth';
@@ -415,24 +415,31 @@ const AddPatientAccordion: React.FC<AddPatientAccordionProps> = ({ isOpen, onClo
   };
 
   return (
-    <div 
-      className={`absolute top-full right-0 mt-2 w-96 sm:w-[500px] bg-white rounded-lg shadow-lg border border-gray-200 z-40 overflow-hidden transition-all duration-300 ease-in-out ${
-        isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
-      }`}
-    >
-      <div className="p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold flex items-center">
-            <ChevronDown className="w-5 h-5 mr-2 text-gray-500" />
-            Yeni Hasta Ekle
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <>
+      {/* Mobile Modal View */}
+      <div 
+        className={`lg:hidden fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-300 ${
+          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={onClose}
+      >
+        <div 
+          className="bg-white rounded-xl w-full max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center">
+                <ChevronDown className="w-5 h-5 mr-2 text-gray-500" />
+                Yeni Hasta Ekle
+              </h3>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -543,15 +550,149 @@ const AddPatientAccordion: React.FC<AddPatientAccordionProps> = ({ isOpen, onClo
             </button>
           </div>
         </form>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Desktop Accordion View */}
+      <div 
+        className={`hidden lg:block absolute top-full right-0 mt-2 w-96 sm:w-[500px] bg-white rounded-lg shadow-lg border border-gray-200 z-40 overflow-hidden transition-all duration-300 ease-in-out ${
+          isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold flex items-center">
+              <ChevronDown className="w-5 h-5 mr-2 text-gray-500" />
+              Yeni Hasta Ekle
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ad Soyad <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                required
+                disabled={loading}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                TC / Pasaport No
+              </label>
+              <input
+                type="text"
+                value={formData.national_id}
+                onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                disabled={loading}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Telefon <span className="text-red-500">*</span>
+              </label>
+              <div className="[&_.react-international-phone-input-container]:h-[42px] [&_.react-international-phone-input]:h-[42px] [&_.react-international-phone-country-selector-button]:h-[42px]">
+                <PhoneInputField
+                  value={formData.phone}
+                  onChange={(phone) => setFormData({ ...formData, phone })}
+                  disabled={loading}
+                  className="w-full group"
+                  inputClassName="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Adres
+              </label>
+              <input
+                type="text"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                disabled={loading}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Başvuru Nedeni
+              </label>
+              <input
+                type="text"
+                value={formData.reason}
+                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="örn. Migren, Yüksek Tansiyon"
+                disabled={loading}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Notlar
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                rows={3}
+                placeholder="Ek notlar..."
+                disabled={loading}
+              />
+            </div>
+            
+            <div className="flex space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                disabled={loading}
+              >
+                İptal
+              </button>
+              <button
+                type="submit"
+                className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                disabled={loading || !formData.name.trim() || !formData.phone.trim()}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Ekleniyor...
+                  </>
+                ) : (
+                  'Hasta Ekle'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
   );
 };
 
 export const PatientsView: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { patients, loading, error, addPatient, updatePatient, refetch } = usePatients(user?.id || null);
+  const { patients, loading, error, addPatient, updatePatient, deletePatient, refetch } = usePatients(user?.id || null);
   const [editFull, setEditFull] = useState<{
     id: string;
     name: string;
@@ -561,6 +702,7 @@ export const PatientsView: React.FC = () => {
     reason: string;
     notes: string;
   } | null>(null);
+  const [deleteConfirmPatientId, setDeleteConfirmPatientId] = useState<string | null>(null);
   const [isAccordionOpen, setIsAccordionOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -626,6 +768,22 @@ export const PatientsView: React.FC = () => {
     });
   };
 
+  const confirmDeletePatient = async () => {
+    if (!deleteConfirmPatientId) return;
+    
+    try {
+      await deletePatient(deleteConfirmPatientId);
+      setDeleteConfirmPatientId(null);
+    } catch (err) {
+      console.error('Error deleting patient:', err);
+      // Error will be shown via the error state from the hook
+    }
+  };
+
+  const cancelDeletePatient = () => {
+    setDeleteConfirmPatientId(null);
+  };
+
   return (
     <>
       <div className="space-y-6">
@@ -637,18 +795,18 @@ export const PatientsView: React.FC = () => {
           <div className="relative flex items-center space-x-2">
             <button
               onClick={() => setIsAccordionOpen(!isAccordionOpen)}
-              className="inline-flex items-center px-3 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+              className="inline-flex items-center justify-center sm:justify-start px-3 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
               title="Yeni Hasta"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Yeni Hasta</span>
             </button>
             <button
               onClick={() => refetch()}
-              className="inline-flex items-center px-3 py-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
+              className="inline-flex items-center justify-center sm:justify-start px-3 py-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
               title="Yenile"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <RefreshCw className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Yenile</span>
             </button>
             <AddPatientAccordion
@@ -720,6 +878,7 @@ export const PatientsView: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İsim</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturulma Tarihi</th>
+                      <th className="px-12 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -763,6 +922,18 @@ export const PatientsView: React.FC = () => {
                             {formatDate(patient.created_at)}
                           </div>
                         </td>
+                        <td className="px-2 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirmPatientId(patient.id);
+                            }}
+                            className="p-1.5 text-red-600 hover:bg-gray-100 rounded transition-colors"
+                            title="Hastayı sil"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -778,12 +949,10 @@ export const PatientsView: React.FC = () => {
                     <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
                       <User className="w-5 h-5 text-emerald-600" />
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
-                          {patient.patient_number || '—'}
-                        </span>
-                      </div>
+                    <div className="flex-1 flex items-center">
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+                        {patient.patient_number || '—'}
+                      </span>
                       <div
                         onClick={() => navigate(`/patient-file/${patient.id}`)}
                         className="text-lg font-medium text-gray-900 cursor-pointer hover:text-emerald-600 hover:bg-gray-50 px-2 py-1 rounded transition-colors"
@@ -792,11 +961,20 @@ export const PatientsView: React.FC = () => {
                         {patient.data.name || '—'}
                       </div>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteConfirmPatientId(patient.id);
+                      }}
+                      className="p-2 text-red-600 hover:bg-gray-100 rounded transition-colors"
+                      title="Hastayı sil"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                   
                   <div className="space-y-2 text-sm border-t border-gray-100 pt-3">
-                    <div className="flex items-center space-x-2">
-                      <Phone className="w-4 h-4 text-gray-400" />
+                    <div className="flex items-center text-gray-500">
                       <EditableCell
                         value={patient.data.phone}
                         patientId={patient.id}
@@ -804,11 +982,11 @@ export const PatientsView: React.FC = () => {
                         onSave={handleFieldSave}
                         canEdit={canEditPatient(patient)}
                         isPhone={true}
-                        className="flex-1"
+                        className="flex-1 -ml-2"
                       />
                     </div>
-                    <div className="flex items-center space-x-2 text-gray-500">
-                      <Calendar className="w-4 h-4" />
+                    <div className="flex items-center text-gray-500">
+                      <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
                       <span>{formatDate(patient.created_at)}</span>
                     </div>
                   </div>
@@ -901,6 +1079,46 @@ export const PatientsView: React.FC = () => {
               >
                 Kaydet
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmPatientId && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={cancelDeletePatient}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 text-center mb-2">
+                Hastayı Sil
+              </h3>
+              <p className="text-gray-600 text-center mb-6">
+                Bu hastayı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+              </p>
+              <div className="flex items-center justify-center space-x-3">
+                <button
+                  onClick={cancelDeletePatient}
+                  className="px-6 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={confirmDeletePatient}
+                  className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center space-x-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Sil</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
