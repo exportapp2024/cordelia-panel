@@ -45,6 +45,21 @@ function App() {
       const accessToken = hashParams.get('access_token');
       const type = hashParams.get('type');
       const message = hashParams.get('message');
+      const error = hashParams.get('error');
+      const errorCode = hashParams.get('error_code');
+      const errorDescription = hashParams.get('error_description');
+
+      // Check for error parameters first (e.g., expired OTP)
+      if (error && errorCode) {
+        // If it's a password recovery error, redirect to reset-password page
+        if (errorCode === 'otp_expired' || errorCode === 'token_expired' || error === 'access_denied') {
+          if (window.location.pathname !== '/reset-password') {
+            // Preserve the hash with error parameters so ResetPasswordView can display them
+            window.location.href = '/reset-password' + window.location.hash;
+          }
+          return;
+        }
+      }
 
       if (accessToken && type === 'recovery') {
         // Token is in URL, user will be handled by ResetPasswordView
