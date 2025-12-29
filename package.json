@@ -26,8 +26,7 @@
     "react-helmet-async": "^2.0.5",
     "react-international-phone": "^4.6.0",
     "react-phone-number-input": "^3.4.13",
-    "react-router-dom": "^7.9.3",
-    "serve": "^14.2.4"
+    "react-router-dom": "^7.9.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
