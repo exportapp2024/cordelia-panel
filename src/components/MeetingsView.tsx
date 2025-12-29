@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar as CalendarIcon, Clock, RefreshCw, Plus, X, ChevronLeft, ChevronRight, Filter, Loader2, ChevronDown, User } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Clock, RefreshCw, Plus, X, ChevronLeft, ChevronRight, Filter, ChevronDown, User } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { usePatients } from '../hooks/usePatients';
 import { buildApiUrl, type Appointment } from '../lib/api';
-import { PhoneInputField } from './PhoneInputField';
 import { AppointmentDetailsModal } from './AppointmentDetailsModal';
+import { AddPatientAccordion } from './AddPatientAccordion';
 import { Calendar, momentLocalizer, SlotInfo, Event as RBCEvent, Views, View } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
@@ -82,7 +81,6 @@ const displayPatientName = (patient: CalendarEvent['patient'] | null): string =>
 
 export const MeetingsView: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { patients, addPatient } = usePatients(user?.id || null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -106,14 +104,6 @@ export const MeetingsView: React.FC = () => {
   // New patient form states
   const [showNewPatientForm, setShowNewPatientForm] = useState(false);
   const [isAddingPatient, setIsAddingPatient] = useState(false);
-  const [newPatientData, setNewPatientData] = useState({
-    name: '',
-    national_id: '',
-    phone: '',
-    address: '',
-    reason: '',
-    notes: ''
-  });
   // const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -355,7 +345,6 @@ export const MeetingsView: React.FC = () => {
     setPatientSearchQuery('');
     setShowPatientDropdown(false);
     setShowNewPatientForm(false);
-    setNewPatientData({ name: '', national_id: '', phone: '', address: '', reason: '', notes: '' });
     setShowCreateModal(true);
   };
 
@@ -660,12 +649,12 @@ export const MeetingsView: React.FC = () => {
       const start = moment(currentDate).startOf('week').toDate();
       const end = moment(currentDate).endOf('week').toDate();
 
-      // Mobile: Show shorter format
+      // Mobile: Show shorter format with year
       if (isMobile) {
         if (start.getMonth() === end.getMonth()) {
-          return `${fmt(start, { day: 'numeric' })} - ${fmt(end, { day: 'numeric', month: 'short' })}`;
+          return `${fmt(start, { day: 'numeric' })} - ${fmt(end, { day: 'numeric', month: 'short', year: 'numeric' })}`;
         }
-        return `${fmt(start, { day: 'numeric', month: 'short' })} - ${fmt(end, { day: 'numeric', month: 'short' })}`;
+        return `${fmt(start, { day: 'numeric', month: 'short' })} - ${fmt(end, { day: 'numeric', month: 'short', year: 'numeric' })}`;
       }
 
       // Desktop: Show full week range
@@ -1030,17 +1019,6 @@ export const MeetingsView: React.FC = () => {
     }
   }, [events, deepLinkParams, user?.id, fetchEvents]);
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('tr-TR', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
   // Format time for display
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -1073,42 +1051,29 @@ export const MeetingsView: React.FC = () => {
   };
 
   // Handle new patient form submission
-  const handleAddNewPatient = async () => {
-    if (!newPatientData.name.trim()) {
-      setError('Hasta ismi zorunludur');
-      return;
-    }
-
+  const handleAddNewPatient = async (patientData: {
+    name: string;
+    national_id?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    reason?: string | null;
+    notes?: string | null;
+  }) => {
     setIsAddingPatient(true);
     setError(null);
 
     try {
-      const newPatient = await addPatient({
-        name: newPatientData.name.trim(),
-        national_id: newPatientData.national_id.trim() || null,
-        phone: newPatientData.phone.trim() || null,
-        address: newPatientData.address.trim() || null,
-        reason: newPatientData.reason.trim() || null,
-        notes: newPatientData.notes.trim() || null,
-      });
+      const newPatient = await addPatient(patientData);
 
       // Select the newly created patient
       if (newPatient && newPatient.id) {
         handlePatientSelect(newPatient.id);
       }
       
-      // Reset form and close
-      setNewPatientData({
-        name: '',
-        national_id: '',
-        phone: '',
-        address: '',
-        reason: '',
-        notes: ''
-      });
       setShowNewPatientForm(false);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Hasta eklenirken bir hata oluştu');
+      throw error; // Re-throw so AddPatientAccordion can handle it
     } finally {
       setIsAddingPatient(false);
     }
@@ -1125,25 +1090,25 @@ export const MeetingsView: React.FC = () => {
       return;
     }
 
-    const maxIndex = filteredPatients.length + (showNewPatientForm ? 0 : 1) - 1; // +1 for "Yeni Hasta Ekle"
+    const maxIndex = filteredPatients.length > 0 ? filteredPatients.length - 1 : -1;
 
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedPatientIndex(prev => (prev < maxIndex ? prev + 1 : 0));
+        if (maxIndex >= 0) {
+          setSelectedPatientIndex(prev => (prev < maxIndex ? prev + 1 : 0));
+        }
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setSelectedPatientIndex(prev => (prev > 0 ? prev - 1 : maxIndex));
+        if (maxIndex >= 0) {
+          setSelectedPatientIndex(prev => (prev > 0 ? prev - 1 : maxIndex));
+        }
         break;
       case 'Enter':
         e.preventDefault();
         if (selectedPatientIndex >= 0 && selectedPatientIndex < filteredPatients.length) {
           handlePatientSelect(filteredPatients[selectedPatientIndex].id);
-        } else if (selectedPatientIndex === filteredPatients.length && !showNewPatientForm) {
-          // "Yeni Hasta Ekle" selected
-          setShowNewPatientForm(true);
-          setShowPatientDropdown(false);
         }
         break;
       case 'Escape':
@@ -1185,7 +1150,6 @@ export const MeetingsView: React.FC = () => {
         setPatientSearchQuery('');
         setShowPatientDropdown(false);
         setShowNewPatientForm(false);
-        setNewPatientData({ name: '', national_id: '', phone: '', address: '', reason: '', notes: '' });
         await fetchEvents();
       } else {
         throw new Error(data.error || 'Randevu oluşturulamadı');
@@ -1292,161 +1256,200 @@ export const MeetingsView: React.FC = () => {
       ) : (
         <div className="bg-white rounded-lg shadow border border-gray-200 flex flex-col" style={{ height: 'calc(100vh - 12.5rem)' }}>
           {/* Custom Toolbar */}
-          <div className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 border-b border-gray-200 flex-shrink-0">
-            <div className="flex items-center space-x-1 sm:space-x-3">
+          <div className="flex flex-col px-2 sm:px-4 py-2 sm:py-3 border-b border-gray-200 flex-shrink-0 gap-2">
+            {/* Mobile: Top row - Navigation and Date */}
+            <div className="flex items-center justify-between sm:hidden">
               <button
-                onClick={handleToday}
-                className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 text-gray-700 rounded font-medium transition-colors"
+                onClick={handlePreviousPeriod}
+                className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                title={currentView === Views.MONTH ? "Önceki ay" : "Önceki hafta"}
               >
-                Bugün
+                <ChevronLeft className="w-5 h-5 text-gray-600" />
               </button>
-              <div className="flex items_center">
-                <button
-                  onClick={handlePreviousPeriod}
-                  className="p-1 sm:p-1.5 hover:bg-gray-100 rounded transition-colors"
-                  title={currentView === Views.MONTH ? "Önceki ay" : "Önceki hafta"}
-                >
-                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                </button>
-                <button
-                  onClick={handleNextPeriod}
-                  className="p-1 sm:p-1.5 hover:bg-gray-100 rounded transition-colors"
-                  title={currentView === Views.MONTH ? "Sonraki ay" : "Sonraki hafta"}
-                >
-                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                </button>
-                    </div>
-              <h2 className="text-sm sm:text-xl font-normal text-gray-900">
+              <h2 className="text-sm font-normal text-gray-900 flex-1 text-center px-2">
                 {getDateRange()}
               </h2>
-              {/* View Toggle Buttons */}
-              <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden ml-2 sm:ml-4">
+              <button
+                onClick={handleNextPeriod}
+                className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                title={currentView === Views.MONTH ? "Sonraki ay" : "Sonraki hafta"}
+              >
+                <ChevronRight className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            
+            {/* Mobile: Bottom row - All buttons in one row */}
+            {/* Desktop: All buttons in one row with proper spacing */}
+            <div className="flex items-center justify-between gap-1 sm:gap-0">
+              {/* Left side - Hafta/Ay and Bugün button */}
+              <div className="flex items-center gap-1 sm:gap-2">
+                {/* View Toggle Buttons */}
+                <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => handleViewChange(Views.WEEK)}
+                    className={`px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                      currentView === Views.WEEK
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Hafta
+                  </button>
+                  <button
+                    onClick={() => handleViewChange(Views.MONTH)}
+                    className={`px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors border-l border-gray-300 ${
+                      currentView === Views.MONTH
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Ay
+                  </button>
+                </div>
+                
+                {/* Desktop: Navigation buttons and date */}
+                <div className="hidden sm:flex items-center">
+                  <button
+                    onClick={handleToday}
+                    className="px-3 py-1.5 text-sm border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors"
+                  >
+                    Bugün
+                  </button>
+                  <div className="flex items-center">
+                    <button
+                      onClick={handlePreviousPeriod}
+                      className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                      title={currentView === Views.MONTH ? "Önceki ay" : "Önceki hafta"}
+                    >
+                      <ChevronLeft className="w-5 h-5 text-gray-600" />
+                    </button>
+                    <button
+                      onClick={handleNextPeriod}
+                      className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                      title={currentView === Views.MONTH ? "Sonraki ay" : "Sonraki hafta"}
+                    >
+                      <ChevronRight className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                  <h2 className="text-xl font-normal text-gray-900 ml-4">
+                    {getDateRange()}
+                  </h2>
+                </div>
+                
+                {/* Mobile: Bugün button */}
                 <button
-                  onClick={() => handleViewChange(Views.WEEK)}
-                  className={`px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
-                    currentView === Views.WEEK
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
+                  onClick={handleToday}
+                  className="sm:hidden px-2 py-1.5 text-xs border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors"
                 >
-                  Hafta
-                </button>
-                <button
-                  onClick={() => handleViewChange(Views.MONTH)}
-                  className={`px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors border-l border-gray-300 ${
-                    currentView === Views.MONTH
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Ay
+                  Bugün
                 </button>
               </div>
-                  </div>
+              
+              {/* Right side - Filter, New Appointment, Refresh */}
+              <div className="flex items-center gap-1 sm:gap-2">
+                {/* Patient Filter Dropdown */}
+                <div className="relative" ref={filterDropdownRef}>
+                  <button
+                    onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                    className="bg-gray-100 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors flex items-center justify-center gap-1 sm:gap-2"
+                    style={{ minWidth: isMobile ? '40px' : 'auto' }}
+                    title={isMobile ? (filterPatientIds.length > 0 ? `${filterPatientIds.length} hasta seçili` : 'Hasta Filtrele') : undefined}
+                  >
+                    <Filter className="w-4 h-4 text-gray-500" />
+                    {!isMobile && (
+                      <span>
+                        {filterPatientIds.length === 0 
+                          ? 'Tüm Hastalar' 
+                          : filterPatientIds.length === 1
+                            ? patients.find(p => p.id === filterPatientIds[0])?.data.name || '1 Hasta'
+                            : `${filterPatientIds.length} Hasta`
+                        }
+                      </span>
+                    )}
+                    {filterPatientIds.length > 0 && (
+                      <span className="bg-emerald-600 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                        {filterPatientIds.length}
+                      </span>
+                    )}
+                  </button>
                   
-            {/* Actions on the right */}
-            <div className="flex items-center gap-1 sm:gap-2">
-              {/* Patient Filter Dropdown */}
-              <div className="relative" ref={filterDropdownRef}>
-                <button
-                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                  className="bg-gray-100 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-colors flex items-center justify-center gap-1 sm:gap-2"
-                  style={{ minWidth: isMobile ? '40px' : 'auto' }}
-                  title={isMobile ? (filterPatientIds.length > 0 ? `${filterPatientIds.length} hasta seçili` : 'Hasta Filtrele') : undefined}
-                >
-                  <Filter className="w-4 h-4 text-gray-500" />
-                  {!isMobile && (
-                    <span>
-                      {filterPatientIds.length === 0 
-                        ? 'Tüm Hastalar' 
-                        : filterPatientIds.length === 1
-                          ? patients.find(p => p.id === filterPatientIds[0])?.data.name || '1 Hasta'
-                          : `${filterPatientIds.length} Hasta`
-                      }
-                    </span>
-                  )}
-                  {filterPatientIds.length > 0 && (
-                    <span className="bg-emerald-600 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
-                      {filterPatientIds.length}
-                    </span>
-                  )}
-                </button>
-                
-                {showFilterDropdown && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                    <div className="p-2 space-y-1">
-                      <label className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={filterPatientIds.length === 0}
-                          onChange={(e) => {
-                            setIsFiltering(true);
-                            if (e.target.checked) {
-                              setFilterPatientIds([]);
-                            }
-                            setTimeout(() => setIsFiltering(false), 300);
-                          }}
-                          className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-                        />
-                        <span className="text-sm font-medium text-gray-900">Tüm Hastalar</span>
-                      </label>
-                      {patients.filter(patient => !patient.deleted_at).map((patient) => (
-                        <label
-                          key={patient.id}
-                          className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
-                        >
+                  {showFilterDropdown && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                      <div className="p-2 space-y-1">
+                        <label className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={filterPatientIds.includes(patient.id)}
+                            checked={filterPatientIds.length === 0}
                             onChange={(e) => {
                               setIsFiltering(true);
                               if (e.target.checked) {
-                                setFilterPatientIds([...filterPatientIds, patient.id]);
-                              } else {
-                                setFilterPatientIds(filterPatientIds.filter(id => id !== patient.id));
+                                setFilterPatientIds([]);
                               }
                               setTimeout(() => setIsFiltering(false), 300);
                             }}
                             className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                           />
-                          <span className="text-sm text-gray-700">
-                            {patient.patient_number ? `#${patient.patient_number} - ` : ''}
-                            {patient.data.name || 'İsimsiz Hasta'}
-                          </span>
+                          <span className="text-sm font-medium text-gray-900">Tüm Hastalar</span>
                         </label>
-                      ))}
+                        {patients.filter(patient => !patient.deleted_at).map((patient) => (
+                          <label
+                            key={patient.id}
+                            className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={filterPatientIds.includes(patient.id)}
+                              onChange={(e) => {
+                                setIsFiltering(true);
+                                if (e.target.checked) {
+                                  setFilterPatientIds([...filterPatientIds, patient.id]);
+                                } else {
+                                  setFilterPatientIds(filterPatientIds.filter(id => id !== patient.id));
+                                }
+                                setTimeout(() => setIsFiltering(false), 300);
+                              }}
+                              className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                            />
+                            <span className="text-sm text-gray-700">
+                              {patient.patient_number ? `#${patient.patient_number} - ` : ''}
+                              {patient.data.name || 'İsimsiz Hasta'}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
+                </div>
+                
+                <button
+                  onClick={() => {
+                    setFormData({ title: '', date: '', time: '', duration: '30', notes: '', patient_id: '' });
+                    setPatientSearchQuery('');
+                    setShowPatientDropdown(false);
+                    setShowNewPatientForm(false);
+                    setShowCreateModal(true);
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-1 sm:space-x-2"
+                  disabled={!!syncingEventId}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Yeni Randevu</span>
+                </button>
+                
+                <button
+                  onClick={() => fetchEvents()}
+                  disabled={loading || !!syncingEventId}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-1 sm:space-x-2"
+                >
+                  <RefreshCw className={`${loading ? 'animate-spin' : ''} w-4 h-4`} />
+                  <span className="hidden sm:inline">Yenile</span>
+                </button>
+                
+                {syncingEventId && (
+                  <span className="hidden sm:inline text-xs text-gray-500 ml-2">Kaydediliyor...</span>
                 )}
               </div>
-              <button
-                onClick={() => {
-                  setFormData({ title: '', date: '', time: '', duration: '30', notes: '', patient_id: '' });
-                  setPatientSearchQuery('');
-                  setShowPatientDropdown(false);
-                  setShowNewPatientForm(false);
-                  setNewPatientData({ name: '', national_id: '', phone: '', address: '', reason: '', notes: '' });
-                  setShowCreateModal(true);
-                }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-1 sm:space-x-2"
-                disabled={!!syncingEventId}
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Yeni Randevu</span>
-              </button>
-                      <button
-                onClick={() => fetchEvents()}
-                disabled={loading || !!syncingEventId}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-1 sm:space-x-2"
-              >
-                <RefreshCw className={`${loading ? 'animate-spin' : ''} w-4 h-4`} />
-                <span className="hidden sm:inline">Yenile</span>
-                      </button>
-              
-            {syncingEventId && (
-              <span className="hidden sm:inline text-xs text-gray-500 ml-2">Kaydediliyor...</span>
-            )}
-          </div>
+            </div>
           </div>
                   
           {/* Calendar Container - flexes to fill remaining space */}
@@ -1581,7 +1584,6 @@ export const MeetingsView: React.FC = () => {
                 setPatientSearchQuery('');
                 setShowPatientDropdown(false);
                 setShowNewPatientForm(false);
-                setNewPatientData({ name: '', national_id: '', phone: '', address: '', reason: '', notes: '' });
               }}
               aria-hidden="true"
             />
@@ -1665,11 +1667,12 @@ export const MeetingsView: React.FC = () => {
                       {showPatientDropdown && (
                         <div
                           ref={patientDropdownRef}
-                          className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto"
+                          className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg flex flex-col"
                         >
-                          {filteredPatients.length > 0 ? (
-                            <>
-                              {filteredPatients.map((patient, index) => (
+                          {/* Scrollable patient list */}
+                          <div className="max-h-60 overflow-auto">
+                            {filteredPatients.length > 0 ? (
+                              filteredPatients.map((patient, index) => (
                                 <button
                                   key={patient.id}
                                   type="button"
@@ -1686,182 +1689,42 @@ export const MeetingsView: React.FC = () => {
                                     </span>
                                   </div>
                                 </button>
-                              ))}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setShowNewPatientForm(true);
-                                  setShowPatientDropdown(false);
-                                }}
-                                className={`w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors border-t border-gray-200 ${
-                                  selectedPatientIndex === filteredPatients.length ? 'bg-emerald-50' : ''
-                                }`}
-                              >
-                                <div className="flex items-center space-x-2 text-emerald-600">
-                                  <Plus className="w-4 h-4" />
-                                  <span className="text-sm font-medium">Yeni Hasta Ekle</span>
-                                </div>
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowNewPatientForm(true);
-                                setShowPatientDropdown(false);
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex items-center space-x-2 text-emerald-600">
-                                <Plus className="w-4 h-4" />
-                                <span className="text-sm font-medium">Yeni Hasta Ekle</span>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                Hasta bulunamadı
                               </div>
-                            </button>
-                          )}
+                            )}
+                          </div>
+                          {/* Fixed "Yeni Hasta Ekle" button at bottom */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowNewPatientForm(true);
+                              setShowPatientDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors border-t border-gray-200 flex-shrink-0"
+                          >
+                            <div className="flex items-center space-x-2 text-emerald-600">
+                              <Plus className="w-4 h-4" />
+                              <span className="text-sm font-medium">Yeni Hasta Ekle</span>
+                            </div>
+                          </button>
                         </div>
                       )}
                     </div>
                   </div>
-                ) : (
-                  /* New Patient Form */
-                  <div className="space-y-4 border border-emerald-200 rounded-lg p-4 bg-emerald-50">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-900">Yeni Hasta Ekle</h3>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowNewPatientForm(false);
-                          setNewPatientData({
-                            name: '',
-                            national_id: '',
-                            phone: '',
-                            address: '',
-                            reason: '',
-                            notes: ''
-                          });
-                        }}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        İsim <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={newPatientData.name}
-                        onChange={(e) => setNewPatientData({ ...newPatientData, name: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                        placeholder="Hasta adı soyadı"
-                        disabled={isAddingPatient}
-                        autoFocus
-                      />
-                    </div>
+                ) : null}
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        TC / Pasaport No
-                      </label>
-                      <input
-                        type="text"
-                        value={newPatientData.national_id}
-                        onChange={(e) => setNewPatientData({ ...newPatientData, national_id: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                        disabled={isAddingPatient}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Telefon
-                      </label>
-                      <PhoneInputField
-                        value={newPatientData.phone}
-                        onChange={(phone) => setNewPatientData({ ...newPatientData, phone })}
-                        disabled={isAddingPatient}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Adres
-                      </label>
-                      <input
-                        type="text"
-                        value={newPatientData.address}
-                        onChange={(e) => setNewPatientData({ ...newPatientData, address: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                        disabled={isAddingPatient}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Başvuru Nedeni
-                      </label>
-                      <input
-                        type="text"
-                        value={newPatientData.reason}
-                        onChange={(e) => setNewPatientData({ ...newPatientData, reason: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                        placeholder="örn. Migren, Yüksek Tansiyon"
-                        disabled={isAddingPatient}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Notlar
-                      </label>
-                      <textarea
-                        value={newPatientData.notes}
-                        onChange={(e) => setNewPatientData({ ...newPatientData, notes: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"
-                        rows={3}
-                        placeholder="Ek notlar..."
-                        disabled={isAddingPatient}
-                      />
-                    </div>
-
-                    <div className="flex space-x-2 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowNewPatientForm(false);
-                          setNewPatientData({
-                            name: '',
-                            national_id: '',
-                            phone: '',
-                            address: '',
-                            reason: '',
-                            notes: ''
-                          });
-                        }}
-                        className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                        disabled={isAddingPatient}
-                      >
-                        İptal
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleAddNewPatient}
-                        disabled={isAddingPatient || !newPatientData.name.trim()}
-                        className="flex-1 px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-colors"
-                      >
-                        {isAddingPatient ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Ekleniyor...</span>
-                          </>
-                        ) : (
-                          <span>Hasta Ekle</span>
-                        )}
-                      </button>
-                    </div>
-                  </div>
+                {/* Add Patient Accordion - shown when showNewPatientForm is true */}
+                {showNewPatientForm && (
+                  <AddPatientAccordion
+                    isOpen={showNewPatientForm}
+                    onClose={() => setShowNewPatientForm(false)}
+                    onAdd={handleAddNewPatient}
+                    loading={isAddingPatient}
+                    variant="inline"
+                  />
                 )}
 
                 <div>
@@ -1928,7 +1791,6 @@ export const MeetingsView: React.FC = () => {
                     setPatientSearchQuery('');
                     setShowPatientDropdown(false);
                     setShowNewPatientForm(false);
-                    setNewPatientData({ name: '', national_id: '', phone: '', address: '', reason: '', notes: '' });
                   }}
                   className="px-4 py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                 >
