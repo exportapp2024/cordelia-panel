@@ -874,7 +874,7 @@ export const PatientsView: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Hasta No</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24 whitespace-nowrap">Hasta No</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İsim</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturulma Tarihi</th>
@@ -885,7 +885,7 @@ export const PatientsView: React.FC = () => {
                     {filteredPatients.map((patient) => (
                       <tr key={patient.id} className="hover:bg-gray-50">
                         <td className="px-4 py-4 whitespace-nowrap w-20">
-                          <div className="text-sm font-bold text-emerald-600 text-center">
+                          <div className="text-sm font-bold text-emerald-600 text-center whitespace-nowrap overflow-hidden text-ellipsis">
                             {patient.patient_number || '—'}
                           </div>
                         </td>
@@ -950,7 +950,7 @@ export const PatientsView: React.FC = () => {
                       <User className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div className="flex-1 flex items-center">
-                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded whitespace-nowrap">
                         {patient.patient_number || '—'}
                       </span>
                       <div
