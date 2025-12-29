@@ -8,6 +8,7 @@
     "build": "npm run typecheck && npm run lint && vite build",
     "lint": "eslint . --max-warnings 0",
     "preview": "vite preview",
+    "start": "npx serve dist -s -l 5173",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
@@ -25,7 +26,8 @@
     "react-helmet-async": "^2.0.5",
     "react-international-phone": "^4.6.0",
     "react-phone-number-input": "^3.4.13",
-    "react-router-dom": "^7.9.3"
+    "react-router-dom": "^7.9.3",
+    "serve": "^14.2.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
