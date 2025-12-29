@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { User, Calendar, FileEdit, Phone, Loader2, AlertCircle, RefreshCw, MoreHorizontal, Edit3, Trash2, FileText, Plus, X } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { User, Calendar, Phone, Loader2, AlertCircle, RefreshCw, Plus, X, Search, Edit3, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePatients } from '../hooks/usePatients';
 import { useAuth } from '../hooks/useAuth';
@@ -359,7 +359,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
   );
 };
 
-interface AddPatientModalProps {
+interface AddPatientAccordionProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (patientData: {
@@ -373,7 +373,7 @@ interface AddPatientModalProps {
   loading: boolean;
 }
 
-const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAdd, loading }) => {
+const AddPatientAccordion: React.FC<AddPatientAccordionProps> = ({ isOpen, onClose, onAdd, loading }) => {
   const [formData, setFormData] = useState({
     name: '',
     reason: '',
@@ -386,7 +386,7 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim() || !formData.phone.trim()) return;
 
     try {
       await onAdd({
@@ -414,26 +414,30 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4 sm:px-6 py-8 sm:py-12">
-      <div className="bg-white rounded-lg w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden shadow-2xl">
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
-          <h3 className="text-lg font-semibold">Yeni Hasta Ekle</h3>
+    <div 
+      className={`absolute top-full right-0 mt-2 w-96 sm:w-[500px] bg-white rounded-lg shadow-lg border border-gray-200 z-40 overflow-hidden transition-all duration-300 ease-in-out ${
+        isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+      }`}
+    >
+      <div className="p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold flex items-center">
+            <ChevronDown className="w-5 h-5 mr-2 text-gray-500" />
+            Yeni Hasta Ekle
+          </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 sm:hidden"
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              İsim *
+              Ad Soyad <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -460,13 +464,17 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Telefon
+              Telefon <span className="text-red-500">*</span>
             </label>
-            <PhoneInputField
-              value={formData.phone}
-              onChange={(phone) => setFormData({ ...formData, phone })}
-              disabled={loading}
-            />
+            <div className="[&_.react-international-phone-input-container]:h-[42px] [&_.react-international-phone-input]:h-[42px] [&_.react-international-phone-country-selector-button]:h-[42px]">
+              <PhoneInputField
+                value={formData.phone}
+                onChange={(phone) => setFormData({ ...formData, phone })}
+                disabled={loading}
+                className="w-full group"
+                inputClassName="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
           </div>
           
           <div>
@@ -509,9 +517,8 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
               disabled={loading}
             />
           </div>
-          </div>
           
-          <div className="flex space-x-3 p-4 sm:p-6 pt-0 border-t border-gray-200 flex-shrink-0 bg-white">
+          <div className="flex space-x-3 pt-2">
             <button
               type="button"
               onClick={onClose}
@@ -523,7 +530,7 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              disabled={loading || !formData.name.trim()}
+              disabled={loading || !formData.name.trim() || !formData.phone.trim()}
             >
               {loading ? (
                 <>
@@ -544,11 +551,7 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onAd
 export const PatientsView: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { patients, loading, error, addPatient, updateNotes, updatePatient, deletePatient, refetch } = usePatients(user?.id || null);
-  const [editingPatient, setEditingPatient] = useState<{ id: string; current: string } | null>(null);
-  const [notesDraft, setNotesDraft] = useState('');
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
+  const { patients, loading, error, addPatient, updatePatient, refetch } = usePatients(user?.id || null);
   const [editFull, setEditFull] = useState<{
     id: string;
     name: string;
@@ -558,8 +561,33 @@ export const PatientsView: React.FC = () => {
     reason: string;
     notes: string;
   } | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAccordionOpen, setIsAccordionOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Helper function to normalize Turkish characters for search
+  const normalizeForSearch = (text: string): string => {
+    return text
+      .toLowerCase()
+      .replace(/ı/g, 'i')
+      .replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u')
+      .replace(/ş/g, 's')
+      .replace(/ö/g, 'o')
+      .replace(/ç/g, 'c');
+  };
+
+  // Filter patients based on search term
+  const filteredPatients = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return patients;
+    }
+    const normalizedSearch = normalizeForSearch(searchTerm);
+    return patients.filter(patient => {
+      const patientName = patient.data.name || '';
+      return normalizeForSearch(patientName).includes(normalizedSearch);
+    });
+  }, [patients, searchTerm]);
 
   // Helper function to check if current user can edit a patient
   // If created_by_user_id is null/undefined (legacy records), allow editing since user_id already matches
@@ -606,9 +634,9 @@ export const PatientsView: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Hastalar</h1>
             <p className="text-gray-600 mt-1">Hasta kayıtlarınızı yönetin</p>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="relative flex items-center space-x-2">
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => setIsAccordionOpen(!isAccordionOpen)}
               className="inline-flex items-center px-3 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
               title="Yeni Hasta"
             >
@@ -623,6 +651,12 @@ export const PatientsView: React.FC = () => {
               <RefreshCw className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Yenile</span>
             </button>
+            <AddPatientAccordion
+              isOpen={isAccordionOpen}
+              onClose={() => setIsAccordionOpen(false)}
+              onAdd={handleAddPatient}
+              loading={isAdding}
+            />
           </div>
         </div>
 
@@ -633,18 +667,46 @@ export const PatientsView: React.FC = () => {
           </div>
         )}
 
+        {/* Search Input */}
+        {!loading && patients.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="İsme göre ara..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
             <span className="ml-2 text-gray-600">Hastalar yükleniyor...</span>
           </div>
-        ) : patients.length === 0 ? (
+        ) : filteredPatients.length === 0 ? (
           <div className="text-center py-12">
-            <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Henüz hasta yok</h3>
-            <p className="text-gray-600">
-              Telegram üzerinden hasta kayıtları ekleyebilirsiniz.
-            </p>
+            {searchTerm ? (
+              <>
+                <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Sonuç bulunamadı</h3>
+                <p className="text-gray-600">
+                  "{searchTerm}" için hasta bulunamadı.
+                </p>
+              </>
+            ) : (
+              <>
+                <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Henüz hasta yok</h3>
+                <p className="text-gray-600">
+                  Telegram üzerinden hasta kayıtları ekleyebilirsiniz.
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <>
@@ -654,23 +716,16 @@ export const PatientsView: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hasta No</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad Soyad</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TC / Pasaport No</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Hasta No</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İsim</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adres</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Başvuru Nedeni</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kayıt Sahibi</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notlar</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hasta Dosyası</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturulma</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturulma Tarihi</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {patients.map((patient) => (
+                    {filteredPatients.map((patient) => (
                       <tr key={patient.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap w-20">
                           <div className="text-sm font-bold text-emerald-600 text-center">
                             {patient.patient_number || '—'}
                           </div>
@@ -681,26 +736,15 @@ export const PatientsView: React.FC = () => {
                               <User className="w-5 h-5 text-emerald-600" />
                             </div>
                             <div className="ml-4 flex-1">
-                              <EditableCell
-                                value={patient.data.name}
-                                patientId={patient.id}
-                                field="name"
-                                onSave={handleFieldSave}
-                                canEdit={canEditPatient(patient)}
-                                className="text-sm font-medium text-gray-900"
-                              />
+                              <div
+                                onClick={() => navigate(`/patient-file/${patient.id}`)}
+                                className="text-sm font-medium text-gray-900 cursor-pointer hover:text-emerald-600 hover:bg-gray-50 px-2 py-1 rounded transition-colors"
+                                title="Hasta dosyasını açmak için tıklayın"
+                              >
+                                {patient.data.name || '—'}
+                              </div>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <EditableCell
-                            value={patient.data.national_id}
-                            patientId={patient.id}
-                            field="national_id"
-                            onSave={handleFieldSave}
-                            canEdit={canEditPatient(patient)}
-                            className="text-gray-900"
-                          />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <EditableCell
@@ -713,150 +757,10 @@ export const PatientsView: React.FC = () => {
                             className=""
                           />
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <EditableCell
-                            value={patient.data.address}
-                            patientId={patient.id}
-                            field="address"
-                            onSave={handleFieldSave}
-                            canEdit={canEditPatient(patient)}
-                            className="text-gray-900"
-                          />
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <EditableCell
-                            value={patient.data.reason}
-                            patientId={patient.id}
-                            field="reason"
-                            onSave={handleFieldSave}
-                            canEdit={canEditPatient(patient)}
-                            className="text-gray-900 max-w-[130px] truncate"
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {canEditPatient(patient) ? (
-                            <span className="text-emerald-600 font-medium">(Siz)</span>
-                          ) : (
-                            <span className="text-gray-600">{patient.created_by_name || 'Bilinmiyor'}</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => { setEditingPatient({ id: patient.id, current: patient.data.notes || '' }); setNotesDraft(patient.data.notes || ''); }}
-                            className="inline-flex items-center p-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title={canEditPatient(patient) ? "Notu Gör/Düzenle" : "Bu kaydı sadece oluşturan kişi düzenleyebilir"}
-                            aria-label="Notu Gör/Düzenle"
-                            disabled={!canEditPatient(patient)}
-                          >
-                            <FileEdit className="w-4 h-4" />
-                          </button>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => navigate(`/patient-file/${patient.id}`)}
-                            className="inline-flex items-center p-2 rounded-md border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
-                            title="Hasta Dosyası"
-                            aria-label="Hasta Dosyası"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </button>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex items-center">
                             <Calendar className="w-4 h-4 mr-1" />
                             {formatDate(patient.created_at)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                          <div className="relative inline-block text-left">
-                            <button
-                              onClick={(e) => {
-                                const button = e.currentTarget;
-                                const isOpening = openMenuId !== patient.id;
-                                if (isOpening) {
-                                  const rect = button.getBoundingClientRect();
-                                  setMenuPosition({
-                                    top: rect.bottom + 8,
-                                    right: window.innerWidth - rect.right,
-                                  });
-                                  setOpenMenuId(patient.id);
-                                } else {
-                                  setOpenMenuId(null);
-                                  setMenuPosition(null);
-                                }
-                              }}
-                              className="inline-flex items-center p-2 rounded-md hover:bg-gray-100"
-                              aria-haspopup="true"
-                              aria-expanded={openMenuId === patient.id}
-                            >
-                              <MoreHorizontal className="w-5 h-5" />
-                            </button>
-
-                            {openMenuId === patient.id && menuPosition && (
-                              <>
-                                {/* Backdrop to close on outside click */}
-                                <div className="fixed inset-0 z-10" onClick={() => { setOpenMenuId(null); setMenuPosition(null); }}></div>
-                                <div 
-                                  className="fixed w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20"
-                                  style={{ top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }}
-                                >
-                                  <div className="py-1 flex flex-col">
-                                    <button
-                                      onClick={() => {
-                                        if (!canEditPatient(patient)) {
-                                          alert('Bu hasta kaydını sadece oluşturan kişi düzenleyebilir');
-                                          setOpenMenuId(null);
-                                          setMenuPosition(null);
-                                          return;
-                                        }
-                                        setEditFull({
-                                          id: patient.id,
-                                          name: patient.data.name || '',
-                                          national_id: patient.data.national_id || '',
-                                          phone: patient.data.phone || '',
-                                          address: patient.data.address || '',
-                                          reason: patient.data.reason || '',
-                                          notes: patient.data.notes || '',
-                                        });
-                                        setOpenMenuId(null);
-                                        setMenuPosition(null);
-                                      }}
-                                      className={`w-full px-4 py-2 text-left text-sm flex items-center ${
-                                        canEditPatient(patient) 
-                                          ? 'text-gray-700 hover:bg-gray-50' 
-                                          : 'text-gray-400 cursor-not-allowed'
-                                      }`}
-                                      disabled={!canEditPatient(patient)}
-                                    >
-                                      <Edit3 className="w-4 h-4 mr-2" /> Düzenle
-                                    </button>
-                                    <button
-                                      onClick={async () => {
-                                        if (!canEditPatient(patient)) {
-                                          alert('Bu hasta kaydını sadece oluşturan kişi silebilir');
-                                          setOpenMenuId(null);
-                                          setMenuPosition(null);
-                                          return;
-                                        }
-                                        setOpenMenuId(null);
-                                        setMenuPosition(null);
-                                        if (confirm('Bu hastayı silmek istediğinize emin misiniz?')) {
-                                          await deletePatient(patient.id);
-                                        }
-                                      }}
-                                      className={`w-full px-4 py-2 text-left text-sm flex items-center ${
-                                        canEditPatient(patient) 
-                                          ? 'text-red-700 hover:bg-gray-50' 
-                                          : 'text-gray-400 cursor-not-allowed'
-                                      }`}
-                                      disabled={!canEditPatient(patient)}
-                                    >
-                                      <Trash2 className="w-4 h-4 mr-2" /> Sil
-                                    </button>
-                                  </div>
-                                </div>
-                              </>
-                            )}
                           </div>
                         </td>
                       </tr>
@@ -868,144 +772,29 @@ export const PatientsView: React.FC = () => {
 
             {/* Mobile Card View */}
             <div className="lg:hidden space-y-4">
-              {patients.map((patient) => (
+              {filteredPatients.map((patient) => (
                 <div key={patient.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
-                            {patient.patient_number || '—'}
-                          </span>
-                        </div>
-                        <EditableCell
-                          value={patient.data.name}
-                          patientId={patient.id}
-                          field="name"
-                          onSave={handleFieldSave}
-                          canEdit={canEditPatient(patient)}
-                          className="text-lg font-medium text-gray-900"
-                        />
-                        <p className="text-sm text-gray-500 flex items-center">
-                          <Calendar className="w-4 h-4 mr-1" />
-                          {formatDate(patient.created_at)}
-                        </p>
-                      </div>
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                      <User className="w-5 h-5 text-emerald-600" />
                     </div>
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          const button = e.currentTarget;
-                          const isOpening = openMenuId !== patient.id;
-                          if (isOpening) {
-                            const rect = button.getBoundingClientRect();
-                            setMenuPosition({
-                              top: rect.bottom + 8,
-                              right: window.innerWidth - rect.right,
-                            });
-                            setOpenMenuId(patient.id);
-                          } else {
-                            setOpenMenuId(null);
-                            setMenuPosition(null);
-                          }
-                        }}
-                        className="inline-flex items-center p-2 rounded-md hover:bg-gray-100"
-                        aria-haspopup="true"
-                        aria-expanded={openMenuId === patient.id}
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+                          {patient.patient_number || '—'}
+                        </span>
+                      </div>
+                      <div
+                        onClick={() => navigate(`/patient-file/${patient.id}`)}
+                        className="text-lg font-medium text-gray-900 cursor-pointer hover:text-emerald-600 hover:bg-gray-50 px-2 py-1 rounded transition-colors"
+                        title="Hasta dosyasını açmak için tıklayın"
                       >
-                        <MoreHorizontal className="w-5 h-5" />
-                      </button>
-
-                      {openMenuId === patient.id && menuPosition && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => { setOpenMenuId(null); setMenuPosition(null); }}></div>
-                          <div 
-                            className="fixed w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20"
-                            style={{ top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }}
-                          >
-                            <div className="py-1 flex flex-col">
-                              <button
-                                onClick={() => {
-                                  if (!canEditPatient(patient)) {
-                                    alert('Bu hasta kaydını sadece oluşturan kişi düzenleyebilir');
-                                    setOpenMenuId(null);
-                                    setMenuPosition(null);
-                                    return;
-                                  }
-                                  setEditFull({
-                                    id: patient.id,
-                                    name: patient.data.name || '',
-                                    national_id: patient.data.national_id || '',
-                                    phone: patient.data.phone || '',
-                                    address: patient.data.address || '',
-                                    reason: patient.data.reason || '',
-                                    notes: patient.data.notes || '',
-                                  });
-                                  setOpenMenuId(null);
-                                  setMenuPosition(null);
-                                }}
-                                className={`w-full px-4 py-2 text-left text-sm flex items-center ${
-                                  canEditPatient(patient) 
-                                    ? 'text-gray-700 hover:bg-gray-50' 
-                                    : 'text-gray-400 cursor-not-allowed'
-                                }`}
-                                disabled={!canEditPatient(patient)}
-                              >
-                                <Edit3 className="w-4 h-4 mr-2" /> Düzenle
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  if (!canEditPatient(patient)) {
-                                    alert('Bu hasta kaydını sadece oluşturan kişi silebilir');
-                                    setOpenMenuId(null);
-                                    setMenuPosition(null);
-                                    return;
-                                  }
-                                  setOpenMenuId(null);
-                                  setMenuPosition(null);
-                                  if (confirm('Bu hastayı silmek istediğinize emin misiniz?')) {
-                                    await deletePatient(patient.id);
-                                  }
-                                }}
-                                className={`w-full px-4 py-2 text-left text-sm flex items-center ${
-                                  canEditPatient(patient) 
-                                    ? 'text-red-700 hover:bg-gray-50' 
-                                    : 'text-gray-400 cursor-not-allowed'
-                                }`}
-                                disabled={!canEditPatient(patient)}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" /> Sil
-                              </button>
-                            </div>
-                          </div>
-                        </>
-                      )}
+                        {patient.data.name || '—'}
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
-                      <span className="font-medium text-gray-700">Kayıt Sahibi:</span>
-                      {canEditPatient(patient) ? (
-                        <span className="text-emerald-600 font-medium">(Siz)</span>
-                      ) : (
-                        <span className="text-gray-600">{patient.created_by_name || 'Bilinmiyor'}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-gray-700">TC / Pasaport:</span>
-                      <EditableCell
-                        value={patient.data.national_id}
-                        patientId={patient.id}
-                        field="national_id"
-                        onSave={handleFieldSave}
-                        canEdit={canEditPatient(patient)}
-                        className="text-gray-900 flex-1"
-                      />
-                    </div>
+                  <div className="space-y-2 text-sm border-t border-gray-100 pt-3">
                     <div className="flex items-center space-x-2">
                       <Phone className="w-4 h-4 text-gray-400" />
                       <EditableCell
@@ -1018,54 +807,9 @@ export const PatientsView: React.FC = () => {
                         className="flex-1"
                       />
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-gray-700">Adres:</span>
-                      <EditableCell
-                        value={patient.data.address}
-                        patientId={patient.id}
-                        field="address"
-                        onSave={handleFieldSave}
-                        canEdit={canEditPatient(patient)}
-                        className="text-gray-900 break-words flex-1"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-gray-700">Başvuru nedeni:</span>
-                      <EditableCell
-                        value={patient.data.reason}
-                        patientId={patient.id}
-                        field="reason"
-                        onSave={handleFieldSave}
-                        canEdit={canEditPatient(patient)}
-                        className="text-gray-900 flex-1 truncate"
-                      />
-                    </div>
-                    {patient.data.notes && (
-                      <div className="flex items-start space-x-2">
-                        <span className="font-medium text-gray-700">Notlar:</span>
-                        <span className="text-gray-900 break-words">{patient.data.notes}</span>
-                      </div>
-                    )}
-                    <div className="pt-3 flex flex-col sm:flex-row gap-2">
-                      <button
-                        onClick={() => { setEditingPatient({ id: patient.id, current: patient.data.notes || '' }); setNotesDraft(patient.data.notes || ''); }}
-                        className="inline-flex items-center justify-center px-3 py-2 rounded-md border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={canEditPatient(patient) ? "Notu Gör/Düzenle" : "Bu kaydı sadece oluşturan kişi düzenleyebilir"}
-                        aria-label="Notu Gör/Düzenle"
-                        disabled={!canEditPatient(patient)}
-                      >
-                        <FileEdit className="w-4 h-4 mr-2" />
-                        Notları Düzenle
-                      </button>
-                      <button
-                        onClick={() => navigate(`/patient-file/${patient.id}`)}
-                        className="inline-flex items-center justify-center px-3 py-2 rounded-md border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 text-sm font-medium transition-colors"
-                        title="Hasta Dosyası"
-                        aria-label="Hasta Dosyası"
-                      >
-                        <FileText className="w-4 h-4 mr-2" />
-                        Hasta Dosyası
-                      </button>
+                    <div className="flex items-center space-x-2 text-gray-500">
+                      <Calendar className="w-4 h-4" />
+                      <span>{formatDate(patient.created_at)}</span>
                     </div>
                   </div>
                 </div>
@@ -1074,47 +818,6 @@ export const PatientsView: React.FC = () => {
           </>
         )}
       </div>
-
-      <AddPatientModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onAdd={handleAddPatient}
-          loading={isAdding}
-        />
-
-      {/* Notes Modal */}
-      {editingPatient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-4">Notları Düzenle</h3>
-            <textarea
-              value={notesDraft}
-              onChange={(e) => setNotesDraft(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              rows={6}
-            />
-            <div className="flex justify-end space-x-2 mt-4">
-              <button
-                onClick={() => setEditingPatient(null)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-              >
-                İptal
-              </button>
-              <button
-                onClick={async () => {
-                  if (editingPatient) {
-                    await updateNotes(editingPatient.id, notesDraft.trim() || null);
-                    setEditingPatient(null);
-                  }
-                }}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
-              >
-                Kaydet
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Full Edit Modal */}
       {editFull && (

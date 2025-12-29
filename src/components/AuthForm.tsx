@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import cordeliaLogo from '../assets/cordelia.png';
@@ -15,6 +15,8 @@ export const AuthForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Password validation functions
   const getPasswordValidation = (password: string) => {
@@ -158,6 +160,8 @@ export const AuthForm: React.FC = () => {
     setPassword('');
     setConfirmPassword('');
     setName('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -204,7 +208,7 @@ export const AuthForm: React.FC = () => {
               <img src={cordeliaLogo} alt="Cordelia" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Cordelia</h1>
-            <p className="text-gray-600 mt-2">Tıbbi Platformunuz</p>
+            <p className="text-gray-600 mt-2">Akıllı Asistan</p>
           </div>
 
           {isForgotPassword ? (
@@ -345,14 +349,26 @@ export const AuthForm: React.FC = () => {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
                   placeholder="••••••••"
                   required
                   minLength={!isLogin ? 6 : undefined}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
               </div>
               {!isLogin && password && (
                 <div className="mt-3 space-y-2">
@@ -451,10 +467,10 @@ export const AuthForm: React.FC = () => {
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors ${
+                      className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors ${
                         confirmPassword && password !== confirmPassword 
                           ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
                           : 'border-gray-200'
@@ -462,6 +478,18 @@ export const AuthForm: React.FC = () => {
                       placeholder="••••••••"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                      tabIndex={-1}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
+                    </button>
                   </div>
                   {confirmPassword && password !== confirmPassword && (
                     <p className="text-xs text-red-600 mt-1 flex items-center">

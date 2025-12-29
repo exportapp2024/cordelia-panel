@@ -14,6 +14,7 @@ export const ResetPasswordView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isTokenValid, setIsTokenValid] = useState<boolean | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
   // Password validation functions (same as AuthForm)
   const getPasswordValidation = (password: string) => {
@@ -44,8 +45,26 @@ export const ResetPasswordView: React.FC = () => {
   useEffect(() => {
     const checkToken = async () => {
       try {
-        // Check URL hash for recovery token first
+        // Check URL hash for error parameters first
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const error = hashParams.get('error');
+        const errorCode = hashParams.get('error_code');
+        const errorDescription = hashParams.get('error_description');
+        
+        // If there's an error in the URL (e.g., expired OTP), mark token as invalid
+        if (error && errorCode) {
+          setIsTokenValid(false);
+          // Decode and set the error message
+          if (errorDescription) {
+            const decodedDescription = decodeURIComponent(errorDescription.replace(/\+/g, ' '));
+            setTokenError(decodedDescription || 'Şifre sıfırlama linki geçersiz veya süresi dolmuş.');
+          } else {
+            setTokenError('Şifre sıfırlama linki geçersiz veya süresi dolmuş.');
+          }
+          return;
+        }
+
+        // Check URL hash for recovery token
         const accessToken = hashParams.get('access_token');
         const type = hashParams.get('type');
         
@@ -59,10 +78,19 @@ export const ResetPasswordView: React.FC = () => {
             
             if (!sessionError) {
               setIsTokenValid(true);
+              setTokenError(null);
+              return;
+            } else {
+              // Session error - token might be invalid
+              setIsTokenValid(false);
+              setTokenError('Şifre sıfırlama linki geçersiz veya süresi dolmuş.');
               return;
             }
           } catch (err) {
             console.error('Session set error:', err);
+            setIsTokenValid(false);
+            setTokenError('Şifre sıfırlama linki geçersiz veya süresi dolmuş.');
+            return;
           }
         }
 
@@ -73,17 +101,21 @@ export const ResetPasswordView: React.FC = () => {
           // Check if we're in password recovery mode by checking URL or session metadata
           if (type === 'recovery' || window.location.hash.includes('type=recovery')) {
             setIsTokenValid(true);
+            setTokenError(null);
           } else {
             // User might have a valid session but not in recovery mode
             // Check if they came from a recovery link
             setIsTokenValid(true); // Allow them to proceed, Supabase will validate
+            setTokenError(null);
           }
         } else {
           setIsTokenValid(false);
+          setTokenError('Şifre sıfırlama linki geçersiz veya süresi dolmuş.');
         }
       } catch (err) {
         console.error('Token check error:', err);
         setIsTokenValid(false);
+        setTokenError('Şifre sıfırlama linki geçersiz veya süresi dolmuş.');
       }
     };
 
@@ -164,7 +196,9 @@ export const ResetPasswordView: React.FC = () => {
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
               <h1 className="text-2xl font-bold text-gray-900">Geçersiz Link</h1>
-              <p className="text-gray-600 mt-2">Şifre sıfırlama linki geçersiz veya süresi dolmuş.</p>
+              <p className="text-gray-600 mt-2">
+                {tokenError || 'Şifre sıfırlama linki geçersiz veya süresi dolmuş.'}
+              </p>
             </div>
             <div className="space-y-4">
               <p className="text-sm text-gray-600 text-center">
