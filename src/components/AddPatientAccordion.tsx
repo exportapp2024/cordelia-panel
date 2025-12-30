@@ -27,10 +27,29 @@ export const AddPatientAccordion: React.FC<AddPatientAccordionProps> = ({ isOpen
     address: '',
   });
 
+  // Helper function to validate phone number
+  const isValidPhoneNumber = (phone: string): boolean => {
+    if (!phone || !phone.trim()) return false;
+    const trimmedPhone = phone.trim();
+    // Phone number should have at least country code + some digits
+    // E.164 format: minimum is country code (e.g., +90) + at least 7-8 digits
+    // For Turkey: +90XXXXXXXXXX (13 characters minimum)
+    // For other countries, we check if it's longer than just country code
+    // Minimum 12 characters ensures we have country code + actual phone number digits
+    if (trimmedPhone.length < 12) return false;
+    // Check if phone number contains at least some digits after country code
+    // Remove all non-digit characters except + to count digits
+    const digitsOnly = trimmedPhone.replace(/[^\d]/g, '');
+    // Should have at least 10 digits (country code + phone number)
+    return digitsOnly.length >= 10;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim() || !formData.phone.trim()) return;
+    if (!formData.name.trim() || !isValidPhoneNumber(formData.phone)) {
+      return;
+    }
 
     try {
       await onAdd({
@@ -174,7 +193,7 @@ export const AddPatientAccordion: React.FC<AddPatientAccordionProps> = ({ isOpen
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              disabled={loading || !formData.name.trim() || !formData.phone.trim()}
+              disabled={loading || !formData.name.trim() || !isValidPhoneNumber(formData.phone)}
             >
               {loading ? (
                 <>
@@ -313,7 +332,7 @@ export const AddPatientAccordion: React.FC<AddPatientAccordionProps> = ({ isOpen
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              disabled={loading || !formData.name.trim() || !formData.phone.trim()}
+              disabled={loading || !formData.name.trim() || !isValidPhoneNumber(formData.phone)}
             >
               {loading ? (
                 <>
@@ -445,7 +464,7 @@ export const AddPatientAccordion: React.FC<AddPatientAccordionProps> = ({ isOpen
               <button
                 type="submit"
                 className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                disabled={loading || !formData.name.trim() || !formData.phone.trim()}
+                disabled={loading || !formData.name.trim() || !isValidPhoneNumber(formData.phone)}
               >
                 {loading ? (
                   <>
