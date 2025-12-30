@@ -404,10 +404,11 @@ export const PatientsView: React.FC = () => {
   }, [patients, searchTerm]);
 
   // Helper function to check if current user can edit a patient
-  // If created_by_user_id is null/undefined (legacy records), allow editing since user_id already matches
+  // If created_by_user_id is null/undefined (legacy records), allow editing if it's the user's patient
   // Otherwise, only the creator can edit
   const canEditPatient = (patient: Patient) => {
-    return !patient.created_by_user_id || patient.created_by_user_id === user?.id;
+    if (!patient.created_by_user_id) return true; // Legacy support
+    return patient.created_by_user_id === user?.id;
   };
 
   const handleFieldSave = async (patientId: string, field: string, value: string | null) => {
@@ -546,9 +547,10 @@ export const PatientsView: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Hasta No</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24 whitespace-nowrap">Hasta No</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İsim</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sahip</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturulma Tarihi</th>
                       <th className="px-12 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
                     </tr>
@@ -557,7 +559,7 @@ export const PatientsView: React.FC = () => {
                     {filteredPatients.map((patient) => (
                       <tr key={patient.id} className="hover:bg-gray-50">
                         <td className="px-4 py-4 whitespace-nowrap w-20">
-                          <div className="text-sm font-bold text-emerald-600 text-center">
+                          <div className="text-sm font-bold text-emerald-600 text-center whitespace-nowrap overflow-hidden text-ellipsis">
                             {patient.patient_number || '—'}
                           </div>
                         </td>
@@ -587,6 +589,15 @@ export const PatientsView: React.FC = () => {
                             isPhone={true}
                             className=""
                           />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                          {patient.created_by_user_id === user?.id ? (
+                            <span className="text-emerald-600 font-medium">Siz</span>
+                          ) : (
+                            <span className="text-gray-600">
+                              {patient.created_by_name || 'Bilinmiyor'}
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex items-center">
@@ -622,7 +633,7 @@ export const PatientsView: React.FC = () => {
                       <User className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div className="flex-1 flex items-center">
-                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded whitespace-nowrap">
                         {patient.patient_number || '—'}
                       </span>
                       <div
@@ -656,6 +667,17 @@ export const PatientsView: React.FC = () => {
                         isPhone={true}
                         className="flex-1 -ml-2"
                       />
+                    </div>
+                    <div className="flex items-center text-gray-700">
+                      <User className="w-4 h-4 mr-2 flex-shrink-0 text-gray-400" />
+                      <span className="text-xs text-gray-500 mr-2">Sahip:</span>
+                      {patient.created_by_user_id === user?.id ? (
+                        <span className="text-emerald-600 font-medium">Siz</span>
+                      ) : (
+                        <span className="text-gray-600">
+                          {patient.created_by_name || 'Bilinmiyor'}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center text-gray-500">
                       <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />

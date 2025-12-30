@@ -111,6 +111,7 @@ export interface Appointment {
   start_time: string;
   end_time: string;
   created_by?: string;
+  created_by_name?: string | null;
   status?: 'attended' | 'no_show' | 'cancelled' | 'confirmed' | null;
   patient_id: string;
   patients?: {

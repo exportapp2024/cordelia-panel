@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Calendar, Clock, User, RefreshCw, Trash2 } from 'lucide-react';
 import { Appointment } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
 interface AppointmentDetailsModalProps {
   appointment: Appointment | null;
@@ -25,6 +26,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
   isDeleting = false,
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
@@ -204,6 +206,20 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
                 <p className="text-sm font-medium text-gray-700">Saat</p>
                 <p className="text-sm text-gray-600">
                   {formatTime(appointment.start_time)} - {formatTime(appointment.end_time)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Creator Info */}
+          <div className="border-t border-gray-200 pt-4">
+            <div className="flex items-start space-x-3">
+              <User className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-gray-700">Randevu Sahibi</p>
+                <p className="text-sm text-gray-600">
+                  {appointment.created_by_name || 
+                   (appointment.created_by === user?.id ? user?.name || 'Siz' : 'Bilinmiyor')}
                 </p>
               </div>
             </div>
