@@ -550,7 +550,7 @@ export const PatientsView: React.FC = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24 whitespace-nowrap">Hasta No</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İsim</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sahip</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturan</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturulma Tarihi</th>
                       <th className="px-12 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
                     </tr>
@@ -670,7 +670,7 @@ export const PatientsView: React.FC = () => {
                     </div>
                     <div className="flex items-center text-gray-700">
                       <User className="w-4 h-4 mr-2 flex-shrink-0 text-gray-400" />
-                      <span className="text-xs text-gray-500 mr-2">Sahip:</span>
+                      <span className="text-xs text-gray-500 mr-2">Oluşturan:</span>
                       {patient.created_by_user_id === user?.id ? (
                         <span className="text-emerald-600 font-medium">Siz</span>
                       ) : (
