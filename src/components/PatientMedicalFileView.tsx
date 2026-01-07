@@ -177,7 +177,28 @@ const PatientMedicalFileView: React.FC = () => {
         setIsReadOnly(!canEdit);
         
         // Auto-populate common fields from patient.data
-        const updatedMedicalFile = { ...medicalFile.medical_file || createEmptyMedicalFile() } as MedicalFileData;
+        const emptyFile = createEmptyMedicalFile();
+        const updatedMedicalFile = { ...emptyFile, ...medicalFile.medical_file } as MedicalFileData;
+        
+        // Ensure all sections exist with proper structure
+        if (!updatedMedicalFile.patientInfo) {
+          updatedMedicalFile.patientInfo = emptyFile.patientInfo;
+        }
+        if (!updatedMedicalFile.generalHealthHistory) {
+          updatedMedicalFile.generalHealthHistory = emptyFile.generalHealthHistory;
+        }
+        if (!updatedMedicalFile.preoperativeEvaluation) {
+          updatedMedicalFile.preoperativeEvaluation = emptyFile.preoperativeEvaluation;
+        }
+        if (!updatedMedicalFile.procedureInfo) {
+          updatedMedicalFile.procedureInfo = emptyFile.procedureInfo;
+        }
+        if (!updatedMedicalFile.dischargeRecommendations) {
+          updatedMedicalFile.dischargeRecommendations = emptyFile.dischargeRecommendations;
+        }
+        if (updatedMedicalFile.admissionReason === undefined) {
+          updatedMedicalFile.admissionReason = '';
+        }
         
         // Ensure procedures array exists for backward compatibility
         if (!updatedMedicalFile.procedureInfo.procedures) {
