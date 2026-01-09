@@ -29,19 +29,10 @@ export const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({
     appointment_id: ''
   });
   const [modalHeight, setModalHeight] = useState<string>('auto');
-  const [animationComplete, setAnimationComplete] = useState(false);
   const modalRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
-      // Reset animation state
-      setAnimationComplete(false);
-      
-      // Set animation complete after animation duration
-      const timer = setTimeout(() => {
-        setAnimationComplete(true);
-      }, 300); // Match animation duration
-      
       if (initialData) {
         setFormData(initialData);
       } else {
@@ -56,8 +47,6 @@ export const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({
           appointment_id: ''
         });
       }
-      
-      return () => clearTimeout(timer);
     }
   }, [isOpen, initialData, appointmentDate]);
 
@@ -114,54 +103,20 @@ export const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({
 
   return (
     <>
-      <style>{`
-        @keyframes slideInFromLeft {
-          from {
-            opacity: 0;
-            transform: translateX(-100%);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        
-        @keyframes slideInFromLeftXL {
-          from {
-            opacity: 0;
-            transform: translateX(calc(-240px - 224px)) translateY(-50%);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0) translateY(-50%);
-          }
-        }
-        
-        .procedure-modal-enter {
-          animation: slideInFromLeft 0.3s ease-out forwards;
-        }
-        
-        @media (min-width: 1280px) {
-          .procedure-modal-enter {
-            animation: slideInFromLeftXL 0.3s ease-out forwards;
-          }
-        }
-      `}</style>
-      {/* Backdrop - z-[48] (always below everything) */}
+      {/* Backdrop - z-[52] (above appointment details modal z-50) */}
       <div 
-        className="fixed inset-0 bg-black/20 md:bg-transparent z-[48]"
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[52] p-4"
         onClick={onClose}
-      />
-      
-      {/* Modal - z-[49] during animation (below appointment details), z-[51] after (above appointment details) */}
-      <div 
-        ref={modalRef}
-        className={`procedure-modal-enter fixed w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col inset-x-0 mx-auto top-[5vh] xl:left-[calc(50%+240px)] xl:right-auto xl:mx-0 xl:top-1/2 xl:-translate-y-1/2 sm:h-auto sm:max-h-[calc(100vh-2rem)] h-[90vh] xl:w-[400px] overflow-hidden ${animationComplete ? 'z-[51]' : 'z-[49]'}`}
-        style={{
-          ...(typeof window !== 'undefined' && window.innerWidth >= 1280 && modalHeight !== 'auto' ? { height: modalHeight } : {})
-        }}
-        onClick={(e) => e.stopPropagation()}
       >
+        {/* Modal - z-[53] (above backdrop) */}
+        <div 
+          ref={modalRef}
+          className="bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden w-full max-w-md max-h-[90vh] sm:max-h-[calc(100vh-2rem)] xl:fixed xl:left-[calc(50%+240px)] xl:right-auto xl:top-1/2 xl:-translate-y-1/2 xl:w-[400px] xl:max-h-none z-[53]"
+          style={{
+            ...(typeof window !== 'undefined' && window.innerWidth >= 1280 && modalHeight !== 'auto' ? { height: modalHeight } : {})
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0 bg-emerald-50/50">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -276,9 +231,9 @@ export const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({
             )}
           </button>
         </div>
+        </div>
       </div>
     </>
   );
 };
-
 
