@@ -1,3 +1,5 @@
+import { ProcedureItem } from '../types/medicalFile';
+
 // API Configuration
 export const API_CONFIG = {
   BASE_URL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001',
@@ -75,7 +77,13 @@ export async function fetchMedicalFile(userId: string, patientId: string) {
       admissionReason?: string;
       generalHealthHistory?: Record<string, string>;
       preoperativeEvaluation?: Record<string, string>;
-      procedureInfo?: Record<string, string>;
+      procedureInfo?: {
+        plannedProcedures?: string;
+        anesthesiaType?: string;
+        duration?: string;
+        operativeNotes?: string;
+        procedures?: ProcedureItem[];
+      };
       followUpNotes?: string;
       dischargeRecommendations?: Record<string, string>;
     };
@@ -161,4 +169,19 @@ export async function createPatientAppointment(userId: string, appointmentData: 
     throw new Error(errorData.error || 'Failed to create appointment');
   }
   return res.json() as Promise<{ success: true; event: Appointment; message: string }>;
+}
+
+// Procedure API functions
+export async function addPatientProcedure(userId: string, patientId: string, procedure: ProcedureItem) {
+  const url = buildApiUrl(`/users/${userId}/patients/${patientId}/procedures`);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(procedure)
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: 'Failed to save procedure' }));
+    throw new Error(errorData.error || 'Failed to save procedure');
+  }
+  return res.json() as Promise<{ success: true; procedure: ProcedureItem; medicalFile: any }>;
 }

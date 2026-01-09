@@ -273,11 +273,12 @@ const PatientMedicalFileView: React.FC = () => {
     }
   }, [user?.id, patientId]);
 
+  // Load appointments on mount to support procedure badges
   useEffect(() => {
-    if (showAppointments && user?.id && patientId) {
+    if (user?.id && patientId) {
       loadAppointments();
     }
-  }, [showAppointments, user?.id, patientId, loadAppointments]);
+  }, [user?.id, patientId, loadAppointments]);
 
   // Close sidebar on window resize to desktop
   useEffect(() => {
@@ -801,6 +802,14 @@ const PatientMedicalFileView: React.FC = () => {
                           })
                         : 'Tarih belirtilmemiş';
                       
+                      // Find matching appointment if procedure has appointment_id
+                      const matchingAppointment = procedure.appointment_id 
+                        ? appointments.find(apt => apt.id === procedure.appointment_id)
+                        : null;
+                      const appointmentTime = matchingAppointment 
+                        ? formatAppointmentTime(matchingAppointment.start_time)
+                        : null;
+                      
                       return (
                         <div
                           key={procedure.id}
@@ -988,7 +997,9 @@ const PatientMedicalFileView: React.FC = () => {
                               <div className="flex justify-end items-center gap-2 flex-wrap">
                                 <span className="inline-flex items-center px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
                                   <Calendar className="w-3 h-3 mr-1 shrink-0" />
-                                  <span className="truncate">{formattedDate}</span>
+                                  <span className="truncate">
+                                    {appointmentTime ? `${formattedDate} - ${appointmentTime}` : formattedDate}
+                                  </span>
                                 </span>
                                 {procedure.anesthesiaType && (
                                   <span className="inline-flex items-center px-2.5 py-1 bg-blue-100 text-blue-600 text-xs font-medium rounded-full">
