@@ -205,7 +205,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
         }}
       >
       <div 
-        className="bg-white rounded-xl shadow-2xl w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] sm:max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -221,7 +221,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4 overflow-y-auto flex-1">
+        <div className="p-4 pb-4 space-y-4 overflow-y-auto flex-1">
           {/* Title and Description */}
           <div>
             <h3 className="text-xl font-bold text-gray-900 mb-1.5">
@@ -316,7 +316,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
                         {linkedProcedure.description}
                       </p>
                       
-                      <div className="flex flex-col sm:flex-row gap-1.5 flex-shrink-0 items-end sm:items-center">
+                      <div className="flex flex-row gap-1.5 flex-shrink-0 items-center">
                         {linkedProcedure.anesthesiaType && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 whitespace-nowrap">
                             <Syringe className="w-3 h-3 mr-1" />
@@ -355,17 +355,17 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
           </div>
 
           {/* Status Selection */}
-          <div className="border-t border-gray-200 pt-3">
+          <div className="border-t border-gray-200 pt-3 pb-0 mb-0">
             <p className="text-sm font-medium text-gray-700 mb-2">Durum</p>
             <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => handleStatusClick('attended')}
                 disabled={isUpdating}
-                className={`flex-1 px-4 h-10 text-sm font-medium rounded-lg border-2 ${
+                className={`w-full sm:flex-1 px-4 h-10 text-sm font-medium rounded-lg border-2 ${
                   appointment.status === 'attended'
                     ? 'bg-emerald-600 border-emerald-600 text-white'
                     : 'bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300'
-                } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2`}
+                } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
               >
                 <span>Geldi</span>
               </button>
@@ -373,16 +373,16 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
               <button
                 onClick={() => handleStatusClick('no_show')}
                 disabled={isUpdating}
-                className={`flex-1 px-4 h-10 text-sm font-medium rounded-lg border-2 ${
+                className={`w-full sm:flex-1 px-4 h-10 text-sm font-medium rounded-lg border-2 ${
                   appointment.status === 'no_show'
                     ? 'bg-yellow-600 border-yellow-600 text-white'
                     : 'bg-white border-yellow-200 text-yellow-700 hover:bg-yellow-50 hover:border-yellow-300'
-                } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2`}
+                } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
               >
                 <span>Gelmedi</span>
               </button>
               
-              <div className="relative flex-1">
+              <div className="relative w-full sm:flex-1 flex">
                 <button
                   ref={cancelButtonRef}
                   onClick={() => handleStatusClick('cancelled')}
@@ -391,7 +391,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
                     appointment.status === 'cancelled'
                       ? 'bg-red-600 border-red-700 text-white'
                       : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300'
-                  } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
                 >
                   <span>Randevu İptal</span>
                 </button>
