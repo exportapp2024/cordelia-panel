@@ -43,6 +43,7 @@ export interface PreoperativeEvaluation {
 
 export interface ProcedureItem {
   id: string;
+  appointment_id?: string; // Link to an appointment
   date: string; // ISO format date string
   description: string;
   anesthesiaType: string;

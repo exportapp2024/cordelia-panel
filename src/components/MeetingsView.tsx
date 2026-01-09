@@ -429,12 +429,37 @@ export const MeetingsView: React.FC = () => {
     return null;
   };
 
-  // Event style getter for custom colors
+  // Event style getter for custom colors based on appointment status
   const eventStyleGetter = (event: CalendarEventRBC) => {
+    const status = event.resource?.status;
     const isOwner = !event.resource?.createdBy || event.resource?.createdBy === user?.id;
-    // Use different shades of green (emerald): lighter for others, normal for owner
-    const backgroundColor = isOwner ? "#10b981" : "#10b981b3"; // emerald-500 vs emerald-300
-    const borderLeftColor = isOwner ? '#059669' : '#34d399'; // emerald-600 vs emerald-400
+    
+    // Determine colors based on appointment status
+    let backgroundColor: string;
+    let borderLeftColor: string;
+    let borderColor: string;
+    
+    if (status === 'attended') {
+      // Geldi - keep current green color
+      backgroundColor = isOwner ? "#10b981" : "#10b981b3"; // emerald-500 vs emerald-500 with opacity
+      borderLeftColor = isOwner ? '#059669' : '#34d399'; // emerald-600 vs emerald-400
+      borderColor = isOwner ? '#047857' : '#059669'; // emerald-700 vs emerald-600 (darker for border)
+    } else if (status === 'no_show') {
+      // Gelmedi - yellow tone
+      backgroundColor = isOwner ? "#eab308" : "#eab308b3"; // yellow-500 vs yellow-500 with opacity
+      borderLeftColor = isOwner ? '#ca8a04' : '#facc15'; // yellow-600 vs yellow-400
+      borderColor = isOwner ? '#a16207' : '#ca8a04'; // yellow-700 vs yellow-600 (darker for border)
+    } else if (status === 'cancelled') {
+      // İptal - lighter red tone with darker border
+      backgroundColor = isOwner ? "#f87171" : "#f87171b3"; // red-400 vs red-400 with opacity (lighter)
+      borderLeftColor = isOwner ? '#dc2626' : '#f87171'; // red-600 vs red-400
+      borderColor = isOwner ? '#b91c1c' : '#dc2626'; // red-700 vs red-600 (darker for border)
+    } else {
+      // Hiçbiri yoksa (null veya confirmed) - gray tone
+      backgroundColor = isOwner ? "#6b7280" : "#6b7280b3"; // gray-500 vs gray-500 with opacity
+      borderLeftColor = isOwner ? '#4b5563' : '#9ca3af'; // gray-600 vs gray-400
+      borderColor = isOwner ? '#374151' : '#4b5563'; // gray-700 vs gray-600 (darker for border)
+    }
     
     const conflictPos = getConflictPosition(event.resource?.id || '');
     
@@ -442,8 +467,8 @@ export const MeetingsView: React.FC = () => {
       backgroundColor,
       borderRadius: '4px',
       color: 'white',
-      border: 'none',
-      borderLeft: `3px solid ${borderLeftColor}`,
+      border: `1px solid ${borderColor}`, // Thin border in darker shade for better distinction
+      borderLeft: `3px solid ${borderLeftColor}`, // Keep left border thicker
       display: 'block',
       padding: '0.3rem',
       fontSize: '12px',
