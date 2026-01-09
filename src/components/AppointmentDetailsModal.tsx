@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Calendar, Clock, User, RefreshCw, Trash2, Activity, Edit2, Plus, Syringe, FileText } from 'lucide-react';
-import { Appointment } from '../lib/api';
+import { Appointment, fetchMedicalFile, addPatientProcedure } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ProcedureItem } from '../types/medicalFile';
-import { getAppointmentProcedure, saveAppointmentProcedure } from '../utils/appointmentProcedureStorage';
 import { ProcedureFormModal } from './ProcedureFormModal';
 
 interface AppointmentDetailsModalProps {
@@ -42,15 +41,34 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
 
   // Load linked procedure when appointment changes
   useEffect(() => {
-    if (appointment?.id) {
-      const procedure = getAppointmentProcedure(appointment.id);
-      setLinkedProcedure(procedure);
-    } else {
-      setLinkedProcedure(null);
-    }
-    // Ensure procedure form is closed when modal opens
-    setShowProcedureForm(false);
-  }, [appointment?.id, isOpen]); // Reload when isOpen changes too
+    const loadProcedure = async () => {
+      if (appointment?.id && appointment?.patients?.id && user?.id) {
+        try {
+          const response = await fetchMedicalFile(user.id, appointment.patients.id);
+          const medicalFile = response.medicalFile?.medical_file;
+          
+          if (medicalFile?.procedureInfo?.procedures) {
+            // Find procedure with matching appointment_id
+            const procedure = medicalFile.procedureInfo.procedures.find(
+              (p: ProcedureItem) => p.appointment_id === appointment.id
+            );
+            setLinkedProcedure(procedure || null);
+          } else {
+            setLinkedProcedure(null);
+          }
+        } catch (error) {
+          console.error('Failed to load procedure:', error);
+          setLinkedProcedure(null);
+        }
+      } else {
+        setLinkedProcedure(null);
+      }
+      // Ensure procedure form is closed when modal opens
+      setShowProcedureForm(false);
+    };
+
+    loadProcedure();
+  }, [appointment?.id, appointment?.patients?.id, user?.id, isOpen]); // Reload when isOpen changes too
 
   // Calculate popup position when it should be shown
   useEffect(() => {
@@ -128,7 +146,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
   };
 
   const handleSaveProcedure = async (procedure: ProcedureItem) => {
-    if (!appointment) return;
+    if (!appointment || !appointment.patients?.id || !user?.id) return;
     
     setIsSavingProcedure(true);
     try {
@@ -138,12 +156,13 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
         appointment_id: appointment.id
       };
       
-      saveAppointmentProcedure(appointment.id, procedureToSave);
+      await addPatientProcedure(user.id, appointment.patients.id, procedureToSave);
       setLinkedProcedure(procedureToSave);
       setShowProcedureForm(false);
     } catch (error) {
       console.error('Failed to save procedure:', error);
       // Optional: show error toast
+      alert('İşlem kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
       setIsSavingProcedure(false);
     }
@@ -317,6 +336,16 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
                       </p>
                       
                       <div className="flex flex-col sm:flex-row gap-1.5 flex-shrink-0 items-end sm:items-center">
+                        {linkedProcedure.date && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 whitespace-nowrap">
+                            <Calendar className="w-3 h-3 mr-1" />
+                            {new Date(linkedProcedure.date).toLocaleDateString('tr-TR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        )}
                         {linkedProcedure.anesthesiaType && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 whitespace-nowrap">
                             <Syringe className="w-3 h-3 mr-1" />
