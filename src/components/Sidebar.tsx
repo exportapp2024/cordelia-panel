@@ -34,7 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
     <>
       {/* Mobile Header - Always visible on mobile */}
       {!hideMobileHeader && (
-      <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
+      <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-lg overflow-hidden">
             <img src={cordeliaLogo} alt="Cordelia" className="w-full h-full object-contain" />
@@ -55,14 +55,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
       {/* Mobile Overlay */}
       {isOpen && (
         <div 
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-20"
           onClick={onToggle}
         />
       )}
 
       {/* Mobile Sidebar Menu */}
       {isOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-white flex flex-col">
+        <div className="md:hidden fixed inset-0 z-30 bg-white flex flex-col">
           {/* Header with close button */}
           <div className="p-6 border-b border-gray-200 flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -153,7 +153,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
       )}
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex fixed md:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 h-screen flex-col">
+      <div className="hidden md:flex fixed md:static inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 h-screen flex-col">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-lg overflow-hidden">

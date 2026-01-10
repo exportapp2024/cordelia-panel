@@ -37,6 +37,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
   // Procedure state
   const [linkedProcedure, setLinkedProcedure] = useState<ProcedureItem | null>(null);
   const [showProcedureForm, setShowProcedureForm] = useState(false);
+  const [isProcedureClosing, setIsProcedureClosing] = useState(false);
   const [isSavingProcedure, setIsSavingProcedure] = useState(false);
 
   // Load linked procedure when appointment changes
@@ -145,6 +146,28 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
     return 'İsimsiz Hasta';
   };
 
+  const handleToggleProcedureForm = () => {
+    if (showProcedureForm) {
+      // If open, close with animation
+      setIsProcedureClosing(true);
+      setTimeout(() => {
+        setShowProcedureForm(false);
+        setIsProcedureClosing(false);
+      }, 300); // Match animation duration
+    } else {
+      // If closed, open directly
+      setShowProcedureForm(true);
+    }
+  };
+
+  const handleCloseProcedureForm = () => {
+    setIsProcedureClosing(true);
+    setTimeout(() => {
+      setShowProcedureForm(false);
+      setIsProcedureClosing(false);
+    }, 300); // Match animation duration
+  };
+
   const handleSaveProcedure = async (procedure: ProcedureItem) => {
     if (!appointment || !appointment.patients?.id || !user?.id) return;
     
@@ -158,7 +181,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
       
       await addPatientProcedure(user.id, appointment.patients.id, procedureToSave);
       setLinkedProcedure(procedureToSave);
-      setShowProcedureForm(false);
+      handleCloseProcedureForm();
     } catch (error) {
       console.error('Failed to save procedure:', error);
       // Optional: show error toast
@@ -202,31 +225,24 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
 
   return (
     <>
-      <style>{`
-        @keyframes slideInFromLeft {
-          from {
-            opacity: 0;
-            transform: translateX(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-      `}</style>
+      {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 bg-black bg-opacity-50 z-[48]"
         onClick={() => {
           // Don't close modal if confirmation popup is open
           if (!showCancelConfirm) {
             onClose();
           }
         }}
-      >
-      <div 
-        className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] sm:max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
+      />
+      
+      {/* Modal Content */}
+      <div className="fixed inset-0 flex items-center justify-center z-[50] p-4 pointer-events-none">
+        <div 
+          className="bg-white rounded-xl w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden pointer-events-auto"
+          style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Randevu Detayları</h2>
@@ -240,7 +256,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
         </div>
 
         {/* Content */}
-        <div className="p-4 pb-4 space-y-4 overflow-y-auto flex-1">
+        <div className="p-4 space-y-4 overflow-y-auto flex-1">
           {/* Title and Description */}
           <div>
             <h3 className="text-xl font-bold text-gray-900 mb-1.5">
@@ -316,11 +332,11 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
               <p className="text-sm font-medium text-gray-700">Yapılan İşlem/Tedavi Bilgileri</p>
               {canModify && linkedProcedure && (
                 <button
-                  onClick={() => setShowProcedureForm(true)}
+                  onClick={handleToggleProcedureForm}
                   className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center hover:bg-emerald-50 px-2 py-1 rounded transition-colors"
                 >
                   <Edit2 className="w-3 h-3 mr-1" />
-                  Düzenle
+                  {showProcedureForm ? 'İptal' : 'Düzenle'}
                 </button>
               )}
             </div>
@@ -373,7 +389,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
             ) : (
               canModify && (
                 <button
-                  onClick={() => setShowProcedureForm(true)}
+                  onClick={handleToggleProcedureForm}
                   className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all group"
                 >
                   <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
@@ -384,17 +400,17 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
           </div>
 
           {/* Status Selection */}
-          <div className="border-t border-gray-200 pt-3 pb-0 mb-0">
+          <div className="border-t border-gray-200 pt-3">
             <p className="text-sm font-medium text-gray-700 mb-2">Durum</p>
             <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => handleStatusClick('attended')}
                 disabled={isUpdating}
-                className={`w-full sm:flex-1 px-4 h-10 text-sm font-medium rounded-lg border-2 ${
+                className={`flex-1 px-4 h-10 text-sm font-medium rounded-lg border-2 ${
                   appointment.status === 'attended'
                     ? 'bg-emerald-600 border-emerald-600 text-white'
                     : 'bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300'
-                } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
+                } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2`}
               >
                 <span>Geldi</span>
               </button>
@@ -402,16 +418,16 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
               <button
                 onClick={() => handleStatusClick('no_show')}
                 disabled={isUpdating}
-                className={`w-full sm:flex-1 px-4 h-10 text-sm font-medium rounded-lg border-2 ${
+                className={`flex-1 px-4 h-10 text-sm font-medium rounded-lg border-2 ${
                   appointment.status === 'no_show'
                     ? 'bg-yellow-600 border-yellow-600 text-white'
                     : 'bg-white border-yellow-200 text-yellow-700 hover:bg-yellow-50 hover:border-yellow-300'
-                } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
+                } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2`}
               >
                 <span>Gelmedi</span>
               </button>
               
-              <div className="relative w-full sm:flex-1 flex">
+              <div className="relative flex-1">
                 <button
                   ref={cancelButtonRef}
                   onClick={() => handleStatusClick('cancelled')}
@@ -420,7 +436,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
                     appointment.status === 'cancelled'
                       ? 'bg-red-600 border-red-700 text-white'
                       : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300'
-                  } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2`}
                 >
                   <span>Randevu İptal</span>
                 </button>
@@ -429,11 +445,10 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
                 {showCancelConfirm && popupPosition && (
                   <div
                     ref={confirmPopupRef}
-                    className="fixed bg-white border-2 border-red-200 rounded-lg shadow-lg p-3 z-[60] min-w-[180px]"
+                    className="fixed bg-white border-2 border-red-200 rounded-lg shadow-lg p-3 z-[60] min-w-[180px] animate-slide-in-left"
                     style={{
                       top: `${popupPosition.top}px`,
-                      left: `${popupPosition.left}px`,
-                      animation: 'slideInFromLeft 0.2s ease-out'
+                      left: `${popupPosition.left}px`
                     }}
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -490,16 +505,17 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
             </button>
           </div>
         )}
-      </div>
+        </div>
       </div>
 
       <ProcedureFormModal
         isOpen={showProcedureForm}
-        onClose={() => setShowProcedureForm(false)}
+        onClose={handleCloseProcedureForm}
         onSave={handleSaveProcedure}
         initialData={linkedProcedure}
         appointmentDate={appointment.start_time}
         isSaving={isSavingProcedure}
+        isClosing={isProcedureClosing}
       />
     </>
   );

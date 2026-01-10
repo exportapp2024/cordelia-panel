@@ -9,6 +9,7 @@ interface ProcedureFormModalProps {
   initialData?: ProcedureItem | null;
   appointmentDate?: string; // To default the date
   isSaving?: boolean;
+  isClosing?: boolean;
 }
 
 export const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({
@@ -18,6 +19,7 @@ export const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({
   initialData,
   appointmentDate,
   isSaving = false,
+  isClosing = false,
 }) => {
   const [formData, setFormData] = useState<ProcedureItem>({
     id: '',
@@ -94,7 +96,7 @@ export const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !isClosing) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,20 +105,28 @@ export const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({
 
   return (
     <>
-      {/* Backdrop - z-[52] (above appointment details modal z-50) */}
+      {/* Backdrop - above everything on mobile, below appointment modal on XL */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[52] p-4"
+        className={`fixed inset-0 bg-black/30 z-[55] xl:z-[47] xl:bg-transparent xl:transition-opacity xl:duration-300 ${
+          isClosing ? 'xl:opacity-0' : 'xl:opacity-100'
+        }`}
         onClick={onClose}
+      />
+      
+      {/* Modal - above backdrop on mobile (z-[56]), below appointment details on XL (z-[49]) */}
+      <div 
+        ref={modalRef}
+        className={`fixed bg-white flex flex-col overflow-hidden z-[56] xl:z-[49]
+          inset-0 xl:inset-auto xl:w-[400px] xl:max-w-md xl:left-[calc(50%+240px)] xl:right-auto xl:top-1/2 xl:-translate-y-1/2 xl:rounded-xl xl:shadow-2xl xl:border xl:border-gray-200 xl:max-h-[calc(100vh-2rem)] ${
+          isClosing 
+            ? 'xl:animate-slide-out-left-xl' 
+            : 'xl:animate-slide-in-left-xl'
+        }`}
+        style={{
+          ...(typeof window !== 'undefined' && window.innerWidth >= 1280 && modalHeight !== 'auto' ? { height: modalHeight } : {})
+        }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal - z-[53] (above backdrop) */}
-        <div 
-          ref={modalRef}
-          className="bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden w-full max-w-md max-h-[90vh] sm:max-h-[calc(100vh-2rem)] xl:fixed xl:left-[calc(50%+240px)] xl:right-auto xl:top-1/2 xl:-translate-y-1/2 xl:w-[400px] xl:max-h-none z-[53]"
-          style={{
-            ...(typeof window !== 'undefined' && window.innerWidth >= 1280 && modalHeight !== 'auto' ? { height: modalHeight } : {})
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0 bg-emerald-50/50">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -230,7 +240,6 @@ export const ProcedureFormModal: React.FC<ProcedureFormModalProps> = ({
               </>
             )}
           </button>
-        </div>
         </div>
       </div>
     </>
