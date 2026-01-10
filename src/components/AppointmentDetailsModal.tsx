@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Calendar, Clock, User, RefreshCw, Trash2, Activity, Edit2, Plus, Syringe, FileText } from 'lucide-react';
+import { X, Calendar, Clock, User, RefreshCw, Trash2, Activity, Edit2, Plus, Syringe, FileText, Loader } from 'lucide-react';
 import { Appointment, fetchMedicalFile, addPatientProcedure } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -39,11 +39,13 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
   const [showProcedureForm, setShowProcedureForm] = useState(false);
   const [isProcedureClosing, setIsProcedureClosing] = useState(false);
   const [isSavingProcedure, setIsSavingProcedure] = useState(false);
+  const [isLoadingProcedure, setIsLoadingProcedure] = useState(false);
 
   // Load linked procedure when appointment changes
   useEffect(() => {
     const loadProcedure = async () => {
       if (appointment?.id && appointment?.patients?.id && user?.id) {
+        setIsLoadingProcedure(true);
         try {
           const response = await fetchMedicalFile(user.id, appointment.patients.id);
           const medicalFile = response.medicalFile?.medical_file;
@@ -60,9 +62,12 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
         } catch (error) {
           console.error('Failed to load procedure:', error);
           setLinkedProcedure(null);
+        } finally {
+          setIsLoadingProcedure(false);
         }
       } else {
         setLinkedProcedure(null);
+        setIsLoadingProcedure(false);
       }
       // Ensure procedure form is closed when modal opens
       setShowProcedureForm(false);
@@ -330,7 +335,7 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
           <div className="border-t border-gray-200 pt-3">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium text-gray-700">Yapılan İşlem/Tedavi Bilgileri</p>
-              {canModify && linkedProcedure && (
+              {canModify && linkedProcedure && !isLoadingProcedure && (
                 <button
                   onClick={handleToggleProcedureForm}
                   className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center hover:bg-emerald-50 px-2 py-1 rounded transition-colors"
@@ -390,10 +395,18 @@ export const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = (
               canModify && (
                 <button
                   onClick={handleToggleProcedureForm}
-                  className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all group"
+                  disabled={isLoadingProcedure}
+                  className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all group disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span className="text-sm font-medium">Yapılan İşlem Ekle</span>
+                  {isLoadingProcedure ? (
+                    <Loader className="w-5 h-5 text-gray-400 animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      <span className="text-sm font-medium">Yapılan İşlem Ekle</span>
+                    </>
+                  )}
+                  
                 </button>
               )
             )}
